@@ -32,7 +32,7 @@ Five fan-facing capabilities powered by one shared Gemini backbone, plus one adm
 4. **Accessibility mode** (step-free routing + sensory-safe zones + camera-scan + TTS/STT)
 5. **Real-time fan decision support** (SSE nudges: gate change, delay, "leave now to catch the metro")
 
-Plus `/admin` route: crowd heatmap, incident injection, top-fan-questions feed, crowd-override sliders.
+Plus `/admin` route: crowd heatmap, incident injection, top-fan-questions feed, crowd-override sliders, and an **AI Operational Briefing** panel (Gemini 2.5 Pro every ~5 min, per ADR 0009).
 
 ## Non-goals — hard limits
 
@@ -72,8 +72,9 @@ When an Antigravity agent (or the human developer) is uncertain about a choice, 
 1. **Prefer whatever keeps the live preview reliable.** A boring choice that stays up beats a clever one that crashes.
 2. **Prefer honest simulation over faked realism.** Manual reviewers detect fakes. The blog leans into "here is what is simulated and how it would connect to real sensors."
 3. **Prefer accessibility as a default, not a mode.** Every route ranks step-free variants alongside fastest.
-4. **Prefer one shared Gemini backbone over per-feature LLM calls.** Function-calling with tools, not scattered prompts.
-5. **When still stuck, log the question to `decisions/pending.md` and pick the cheapest reversible choice.** Do not block on architecture debates.
+4. **Prefer privacy-preserving primitives.** No facial recognition, no individual tracking, aggregate only — see ADR 0010.
+5. **Prefer one shared Gemini backbone over per-feature LLM calls.** Function-calling with tools, not scattered prompts.
+6. **When still stuck, log the question to `decisions/pending.md` and pick the cheapest reversible choice.** Do not block on architecture debates.
 
 ## Voice — how Concourse speaks to fans
 

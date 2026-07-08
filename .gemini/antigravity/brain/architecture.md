@@ -82,6 +82,9 @@ A React PWA (Firebase Hosting) talks to one Node/Express backend (Azure App Serv
 | 0005 | Crowd is simulated — transparent, not disguised |
 | 0006 | Build in Claude Code first, port to Antigravity D10; brain/ is seeded pre-port |
 | 0007 | 15 RPM Gemini free-tier ceiling handled with a token-bucket + queue + graceful "one moment" |
+| 0008 | Predictive density (T+15 / T+30) shipped as a ghosted heatmap layer, projected from the simulator curve |
+| 0009 | AI Operational Briefing on `/admin` — Gemini 2.5 Pro every ~5 min, structured `Briefing` output |
+| 0010 | Privacy by design — no facial recognition, aggregate crowd only, anonymous sessions, ephemeral chat, opt-in notifications |
 
 ## Data flow — a fan asks "where's the nearest step-free restroom?"
 

@@ -29,6 +29,7 @@ _The domain vocabulary the agent must speak in. When Antigravity generates code 
 | **Zone** | An aggregation of nearby graph nodes with a shared crowd density value. E.g. `l1-south-restrooms` = all Level 1 south-side restroom nodes. Zones are the unit of density measurement. |
 | **Density** | Value 0.0–1.0. 0 = empty, 1 = at capacity. Written by simulator every 15s if delta > 5%. |
 | **Wait seconds** | Estimated queue wait derived from density and zone type (a bathroom at 0.9 density ≠ a food stand at 0.9 density). |
+| **Prediction / Projection** | Forward-look density at T+15 and T+30 minutes, sampled from the simulator's own phase curve — NOT a claim of ML forecasting. Carries a `confidence` field (simulator self-report). See ADR 0008. In user-facing copy prefer "projection" over "prediction". |
 | **Halftime surge** | The well-known 15-minute density spike at restrooms and concessions after the 45th minute. First-class case in the simulator. |
 | **Post-match egress** | The 20-minute exit + transit surge after the final whistle. |
 
@@ -47,8 +48,10 @@ _The domain vocabulary the agent must speak in. When Antigravity generates code 
 |---|---|
 | **Concierge** | The single Gemini agent Concourse presents to fans. Uses `concierge.system.md` prompt. |
 | **Tool** | A typed function the agent can call. Registered via Gemini function-calling. See `docs/PLAN.md` §2 for the full list. |
+| **Briefing** | A structured LLM-authored situational read for `/admin`, refreshed every ~5 min. Fields split between LLM-authored prose (`headline`, `summary`, `concerns`, `recommendations`) and tool-derived numeric/enum data (`occupancy_pct`, `top_fan_questions`). See ADR 0009. |
 | **Nudge** | A proactive alert pushed to the client over SSE. Distinct from a conversational message — nudges are one-way and dismissible. |
 | **Incident** | A backend-injected event (weather, closure, gate change) that triggers alert-engine rules. Admin can inject via `/admin`. |
+| **Reversible recommendation** | A briefing recommendation the operator can one-click apply without consequence (e.g. "nudge Sec 120-130 fans toward L1 south"). Non-reversible recommendations require two-step confirm. |
 
 ## Language / i18n terms
 

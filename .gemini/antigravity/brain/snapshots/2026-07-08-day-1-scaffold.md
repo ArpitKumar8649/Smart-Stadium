@@ -48,6 +48,30 @@ Evidence scaffolding
 - `evidence/README.md` documents the folder contract.
 - `evidence/screenshots/` and `evidence/walkthroughs/` exist and are tracked.
 
+## Post-D1 grafts (same day, after external blueprint review)
+
+Two external smart-stadium blueprints were reviewed after the scaffold shipped. Four small ideas were grafted into the plan without disturbing existing scope:
+
+- **Predictive crowd density (T+15 / T+30)** — extended `CrowdLevel` Zod schema with an optional `predictions[]` array. Simulator will sample its own phase curve forward in time on the 15s tick. Ghosted heatmap overlay renders the T+15 layer. See ADR 0008.
+- **AI Operational Briefing on `/admin`** — new `Briefing` Zod schema and a Gemini 2.5 Pro call every ~5 min. Structured output: `occupancy_pct` and `top_fan_questions` tool-derived, `headline` / `summary` / `concerns[]` / `recommendations[]` LLM-authored. See ADR 0009.
+- **Privacy by design** — codified the implicit stance into six explicit principles enforced by schema + middleware: no facial recognition ever, aggregate-only crowd (no `fan_id`), anonymous sessions default, ephemeral chat, COUNT-based query aggregation, opt-in notifications. See ADR 0010.
+- **Research citations** — added a "Grounded in research" H2 to the blog citing Helbing–Molnár social force model (1995), FIFA Stadium Guidelines 5th ed. (2023), and ADA §221/§802. Rhetorical grounding for the design choices.
+
+Files touched by the grafts:
+- `shared/src/schemas/crowd.ts` — added `CrowdPredictionSchema`, `predictions[]` on `CrowdLevel`.
+- `shared/src/schemas/briefing.ts` — new file.
+- `shared/src/schemas/index.ts` — export briefing.
+- `.gemini/antigravity/brain/decisions/0008-predictive-density-t15-t30.md` — new.
+- `.gemini/antigravity/brain/decisions/0009-ai-operational-briefing-admin.md` — new.
+- `.gemini/antigravity/brain/decisions/0010-privacy-by-design.md` — new.
+- `.gemini/antigravity/brain/architecture.md` — ADR table extended to 10 rows.
+- `.gemini/antigravity/brain/glossary.md` — added `Prediction/Projection`, `Briefing`, `Reversible recommendation`.
+- `.gemini/antigravity/brain/project.md` — `/admin` scope updated, added privacy to uncertainty pattern.
+- `README.md` — 2 features table rows updated, new "Privacy by design" H2, ADR digest table extended to 10 rows.
+- `docs/BLOG.md` — new "Grounded in research" H2 after "The problem", T+15 addendum inside Feature 3, new "Privacy by design" H2 after Feature 3, new "The /admin briefing" H2 after Feature 5.
+
+Shared package rebuilds clean after schema changes. Frontend not touched (no UI code yet).
+
 ## What was not shipped today (and why)
 
 - No Firebase Admin SDK wired in yet — deferred to D2 (needs actual project ID/service account from user).
