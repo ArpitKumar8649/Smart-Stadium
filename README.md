@@ -38,10 +38,10 @@ Concourse is one product, five capabilities, one Gemini agent. It's the companio
 |---|---|---|
 | **Multilingual concierge** | Chat + voice Q&A in 30+ languages ("where's Gate C?", "when's kickoff?", "is Section 128 crowded?") | Gemini 2.5 Flash with function-calling; 12 seed languages via `react-i18next`, unseeded languages fall back to runtime Gemini translation with a UI indicator |
 | **Smart indoor navigation** | Turn-by-turn routing between any two nodes at MetLife, narrated in the user's language | A* pathfinding over a hand-modelled 12-node venue graph; LLM narrates steps from typed tool results, never invents them |
-| **Live crowd awareness** | Real-time zone density heatmap + queue estimates that update every 15s | Firestore doc-per-zone, client subscribes directly (resilient to backend cold starts); simulator writes deltas > 5%; every reading tagged `source: "sim" \| "injected" \| "sensor"` |
+| **Live crowd awareness** | Real-time zone density heatmap + queue estimates + a **T+15 / T+30 projected-density overlay** that shifts operators from monitoring to forecasting | Firestore doc-per-zone, client subscribes directly (resilient to backend cold starts); simulator writes deltas > 5%; every reading tagged `source: "sim" \| "injected" \| "sensor"` and forward-look sampled from the same phase curve |
 | **Accessibility mode** | Step-free routing, sensory-safe zone awareness, camera → sign reader with TTS, high-contrast UI | Accessibility is a routing **weight** (β on step-count violations), not a hard filter; Gemini multimodal reads and translates signs in one call |
 | **Real-time decision support** | Proactive SSE nudges: "gate change at Gate C", "leave now to catch the 10:47 metro", "halftime egress starting in 4 min" | Server-Sent Events over Express; token-bucket rate-limited (12/min); every alert is JSON with `severity`, `expiresAt`, and a source event |
-| **`/admin` ops view** | Crowd heatmap, incident injector, aggregated fan-query feed, manual crowd-override sliders | The judge's playground — one click closes food court 2, and connected fan apps reroute live via Firestore + SSE |
+| **`/admin` ops view** | Crowd heatmap, incident injector, aggregated fan-query feed, manual crowd-override sliders — **plus an AI Operational Briefing** the ops chief reads instead of the widgets | The judge's playground — one click closes food court 2, and connected fan apps reroute live via Firestore + SSE. Every ~5 min, Gemini 2.5 Pro emits a structured `Briefing` (headline + summary + concerns[] + recommendations[]) grounded in tool results, not vibes. |
 
 ### Design principles
 
@@ -54,6 +54,23 @@ Concourse is one product, five capabilities, one Gemini agent. It's the companio
 > **Simulated crowd is labelled.** The demo runs on a phase-curve simulator (pre-match ramp, kickoff drop, halftime surge, post-match egress). Every reading carries a `source` field, and the UI shows a "simulated" chip. We never claim to have sensors we don't have.
 
 > **Zero paid services, zero credit card.** Google AI Studio free tier for Gemini, Firebase Spark plan, Azure Student F1 for the backend, Web Speech API for STT/TTS. If a judge wants to fork and run it, they can — for the price of a Google account.
+
+> **Privacy by design — not an afterthought.** No facial recognition, ever. Aggregate zone density only — the schema has no notion of an individual fan. Anonymous sessions by default, ephemeral chat, opt-in notifications. See [ADR 0010](.gemini/antigravity/brain/decisions/0010-privacy-by-design.md).
+
+---
+
+## 🛡 Privacy by design
+
+Most stadium tech treats privacy as a footer link. Concourse treats it as an architectural constraint. The six principles below are enforced by the schema and the middleware, not by policy:
+
+1. **No facial recognition. Ever.** Not in the app, not in the simulator, not in the sensor-migration path. When real crowd data ships (roadmap v0.3), the edge-CV path emits bounding-box vectors only and drops the frames within the same process. Faces never leave the camera sensor.
+2. **Aggregate crowd, not individual location.** The crowd data model has no `fan_id` — it is architecturally impossible to answer "where is fan X" because the schema doesn't carry a fan identity.
+3. **Anonymous sessions by default.** Firebase Auth guest mode is the default. Google sign-in is optional and unlocks nothing except opt-in preference persistence across devices.
+4. **Ephemeral chat.** The concierge does not persist chat history server-side. Session context (last ~10 turns) lives in memory for the SSE connection lifetime. Preferences are opt-in; everything else evaporates on tab close.
+5. **COUNT-based aggregation for `/admin`.** The `top_fan_questions` feed shown in the AI Briefing is count-based, never full-text. "24 fans asked about halal food" is the shape; original messages are never surfaced to operators.
+6. **Opt-in notifications.** The Notification API prompt is deferred until the fan asks for proactive nudges. Never triggered on landing.
+
+Concretely enforced: Firestore security rules forbid client writes outside `/sessions/{ownSessionId}`; `pino` redacts `Authorization`, `Cookie`, `image_b64`, and service-account JSON; production CORS is a single-origin allowlist; `LOG_USER_INPUT=false` by default.
 
 ---
 
@@ -222,7 +239,7 @@ Smart-Stadium/                          # git repo name; product is CONCOURSE
 │           ├── project.md
 │           ├── architecture.md
 │           ├── glossary.md
-│           └── decisions/              # ADRs 0001-0007
+│           └── decisions/              # ADRs 0001-0010
 │               ├── 0001-monorepo-npm-workspaces.md
 │               ├── 0002-sse-over-websockets.md
 │               ├── 0003-gemini-ai-studio-only.md
@@ -349,7 +366,7 @@ Feature-first modularity means each capability owns its slice — `features/wayf
 
 ## 🎯 Design decisions
 
-Seven ADRs, one row each. Full text lives in `.gemini/antigravity/brain/decisions/`.
+Ten ADRs, one row each. Full text lives in `.gemini/antigravity/brain/decisions/`.
 
 | # | Decision | Why |
 |---|---|---|
@@ -360,8 +377,11 @@ Seven ADRs, one row each. Full text lives in `.gemini/antigravity/brain/decision
 | 5 | Simulated crowd, labelled as such | Every crowd sample carries `source: "sim" \| "injected" \| "sensor"`. Honesty scores better in manual review than a fake sensor claim that a judge can poke at. |
 | 6 | Build in Claude Code first, port to Antigravity on Day 10 | Antigravity's public preview is untested at hackathon scale. Brain/ is seeded densely pre-port; Prompt Pack #2 does real feature work post-port. Risk is acknowledged in the blog. |
 | 7 | Free-tier ceiling → token bucket + FIFO queue | 15 RPM AI Studio limit → 12 RPM bucket (3 RPM headroom), queue depth 20, "one moment" fallback when full. No mid-demo 429s. |
+| 8 | Predictive density (T+15 / T+30) as a ghosted heatmap layer | Every `CrowdLevel` carries an optional `predictions[]` sampled from the simulator's own phase curve. No ML claims; the forward-look uses the same signal that produced the current value. Turns `/admin` from monitoring into forecasting. |
+| 9 | AI Operational Briefing on `/admin` | One Gemini 2.5 Pro call every ~5 min emits a structured `Briefing` (headline + summary + concerns + recommendations). LLM writes prose; numeric fields are tool-derived. Turns widgets into a chief-of-staff. |
+| 10 | Privacy by design | No facial recognition anywhere. Aggregate zone density only — schema has no `fan_id`. Anonymous sessions default, ephemeral chat, opt-in notifications. Enforced by schema and middleware, not policy. |
 
-Full ADRs live in `.gemini/antigravity/brain/decisions/`. Read them in order — 0001 sets up the shape of the repo, 0007 explains why the demo does not crash.
+Full ADRs live in `.gemini/antigravity/brain/decisions/`. Read them in order — 0001 sets up the shape of the repo, 0007 explains why the demo does not crash, 0010 is the constraint every future feature must satisfy.
 
 ## 🛠 Dev workflow
 

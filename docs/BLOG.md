@@ -30,6 +30,16 @@ Pick "smart navigation" alone and you've built a maps demo — solvable in a wee
 
 So I spent Day 0 on scope, not code. That turned out to be the most important decision I made this week.
 
+## Grounded in research (a short detour)
+
+I want to flag three sources that shaped my thinking, because "smart stadium" is a phrase people hand-wave. It has a real literature.
+
+- **Helbing & Molnár, "Social force model for pedestrian dynamics" (Phys. Rev. E, 1995)** — the foundational model of crowd flow. It's why the halftime surge and post-match egress in my simulator aren't invented curves; they're what the social-force literature predicts when a dense crowd meets a bottleneck. When my heatmap projects a surge at Level 1 north restrooms 15 minutes ahead of kickoff-plus-45, that's not a guess — it's a reproduction of a well-studied phenomenon.
+- **FIFA Stadium Guidelines (5th ed., 2023)** — publicly available. Defines the accessibility, security, and signage requirements every 2026 host venue is engineered to. MetLife's Level 1 sensory sensitivity room and companion-seat rows in my venue graph come from this document, not my imagination.
+- **ADA Standards for Accessible Design (2010, §221 & §802)** — the US federal standard MetLife is built to. The 1:12 ramp slope, the 60-inch turning circle, the elevator-adjacent step-free routes — those constants are why "step-free" in Concourse is a routing weight, not a filter (§802.1 is explicit that inaccessible paths must still be reachable via an alternative).
+
+These citations are not decoration. Every one of them constrained a decision that lands in the code you'll see below.
+
 ## The constraints that shaped everything
 
 Solo builder. India-based. First-time PromptWars entrant. No corporate credit card, which rules out anything that starts with "add billing to enable this API." The list of hard constraints looks like this:
@@ -214,7 +224,24 @@ Here's the honest reason this scores better than fake real-time: **manual review
 
 **Migration path, one paragraph:** the real version doesn't stream raw camera frames — that's a PII bomb and a bandwidth bomb. It streams **bounding-box vectors** from edge CV: `[zoneId, count, ts]`. Same output shape as my simulator. Drop the frames on-device, ship the counts. Concourse doesn't need to change a line of frontend code.
 
+**A projection ships alongside the reading.** Because the simulator generates a full phase curve, "density right now" is one sample from a function I can also query 15 or 30 minutes ahead. That forward-look ships in the same `CrowdLevel` payload as an optional `predictions[]` array — `T+15` and `T+30`, each with a `confidence` field. The heatmap renders the T+15 layer as a ghosted overlay from a legend chip; `/admin` also shows T+30. I don't call it a "prediction" in copy — I call it a "projection", because it's the same signal walking forward in time, not an ML forecast. That's the honest framing, and it's what turns `/admin` from monitoring into forecasting without adding an ML model. Ship it in one Zod field, gain the entire ops-forecasting narrative. See [ADR 0008](.gemini/antigravity/brain/decisions/0008-predictive-density-t15-t30.md).
+
 ![Simulated crowd heatmap over MetLife concourse](evidence/screenshots/crowd-heatmap.png)
+
+## Privacy by design — the constraint that made the schema simpler
+
+I have to say this out loud because most stadium tech does not: **Concourse never uses facial recognition, and it does not track individual fans.** The crowd data model literally has no notion of a person — every reading is zone-level density, aggregated. It is architecturally impossible to answer "where is fan X" against this schema, because the schema doesn't carry a fan identity in the crowd collection. That constraint is not a compliance checkbox. It's a design choice that made everything else easier.
+
+Six principles, enforced by the schema and the middleware:
+
+1. **No facial recognition. Ever.** When the crowd data migrates from simulator to real edge CV, the sensor emits bounding-box vectors only and drops the frames on-device. Faces never leave the sensor.
+2. **Aggregate crowd, not individual location.** No `fan_id` on any `CrowdLevel` document.
+3. **Anonymous sessions by default.** Firebase Auth guest mode. Google sign-in is optional and unlocks nothing except opt-in preference persistence.
+4. **Ephemeral chat.** The concierge does not persist chat history server-side. Session context lives in memory for the SSE connection lifetime.
+5. **COUNT-based aggregation for `/admin`.** The `top_fan_questions` feed is *"24 fans asked about halal food"* — the underlying messages are never joined back to a fan.
+6. **Opt-in notifications.** The Notification API permission prompt is deferred until the fan asks for proactive nudges.
+
+The most important privacy artifact in the whole product is a one-sentence line on the landing page: *"Concourse never uses facial recognition and never tracks individuals — only aggregate zone density."* Trust starts before the first tap. See [ADR 0010](.gemini/antigravity/brain/decisions/0010-privacy-by-design.md) for the full stance and the middleware enforcement details.
 
 ## Feature 4 — Accessibility as a default, not a mode
 
@@ -294,6 +321,41 @@ The Notification API + service worker gives us background push when the user opt
 **The judge demo moment**: judge opens `/admin`, sees the live heatmap, presses "Close food court 2". Firestore write → backend detects the incident → rule fires → LLM composes copy in the fan's language → SSE event streams to the fan tab beside them → the fan's route updates on-screen in under two seconds. That's the shot. I'll record it. The screenshot below is a mock; the real one goes here on D11.
 
 ![Admin injects incident, fan app reroutes live](evidence/screenshots/admin-inject-reroute.png)
+
+## The /admin briefing — Gemini as chief-of-staff
+
+The original `/admin` route was a mirror over live data: heatmap, incident injector, aggregated queries, override sliders. Useful, but reactive. Reading it, I realised what an ops chief actually wants isn't five widgets — it's the synthesis. So `/admin` grew one more panel: **the AI Operational Briefing**, refreshed every ~5 minutes and on-demand.
+
+One Gemini 2.5 Pro call per briefing. Input: the current heatmap (including the T+15/T+30 projections from earlier), the last 10 incidents, the top 5 aggregated fan questions, the current match phase, and the time until the next phase boundary. Output: a typed `Briefing`.
+
+Here's the schema, from `shared/src/schemas/briefing.ts`:
+
+```typescript
+export const BriefingSchema = z.object({
+  id: z.string(),
+  venue_id: z.string(),
+  match_id: z.string().optional(),
+  generated_at: z.string(),
+  window_start: z.string(),
+  window_end: z.string(),
+  occupancy_pct: z.number().min(0).max(100),  // tool-derived, NOT LLM
+  headline: z.string().max(160),               // LLM-authored
+  summary: z.string().max(1200),               // LLM-authored
+  concerns: z.array(BriefingConcernSchema),    // structured, LLM-authored
+  recommendations: z.array(BriefingRecommendationSchema),
+  top_fan_questions: z.array(z.string()),      // tool-derived, NOT LLM
+  model: z.string(),
+  lang: z.string().default('en'),
+});
+```
+
+Notice the split. `occupancy_pct` and `top_fan_questions` come from tool results — deterministic tool-grounding applies here exactly as it does to the concierge. The LLM writes the prose fields (`headline`, `summary`, `concerns`, `recommendations`), but it cannot invent an occupancy percentage or a fan-question count. The structured `concerns` array forces the LLM to name a zone and pick a severity per concern — it can't hide behind vague prose.
+
+The `recommendations[].reversible` flag matters. It lets the UI mark low-risk suggestions (*"nudge Sec 120-130 fans toward L1 south restrooms"*) with a one-click apply. Non-reversible recommendations (*"close Food Court 2"*) require a two-step confirm. The LLM proposes; the operator disposes.
+
+One quotable moment for the demo: at halftime the briefing might read *"Occupancy 87%. Level 1 north restrooms projected 90% in 8 min — pre-nudge Sec 120-130 fans toward L1 south. Gate A queue steady at 4 min wait."* That's what an ops chief hears from a chief-of-staff. Not a dashboard. See [ADR 0009](.gemini/antigravity/brain/decisions/0009-ai-operational-briefing-admin.md).
+
+![The Gemini-authored operational briefing on /admin](evidence/screenshots/admin-briefing.png)
 
 ## Building in Google Antigravity — the agentic IDE
 
