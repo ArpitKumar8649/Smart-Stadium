@@ -1,0 +1,26 @@
+{
+  "name": "concourse",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Concourse — Your AI companion at every gate, seat, and section. Smart-stadium GenAI companion built for PromptWars Virtual Challenge 4 (FIFA World Cup 2026).",
+  "workspaces": [
+    "shared",
+    "backend",
+    "frontend"
+  ],
+  "engines": {
+    "node": ">=20.11.0 <21"
+  },
+  "scripts": {
+    "dev": "concurrently -n backend,frontend -c cyan,magenta \"npm run dev -w backend\" \"npm run dev -w frontend\"",
+    "build": "npm run build -w shared && npm run build -w backend && npm run build -w frontend",
+    "lint": "npm run lint --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "clean": "rm -rf shared/dist backend/dist frontend/dist"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "prettier": "^3.3.3"
+  }
+}
