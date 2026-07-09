@@ -1,0 +1,91 @@
+[
+  {
+    "id": "eli_3fead2f09490bd0d",
+    "parent": "el_612fd595e325477fb00003ab",
+    "operationHours": [],
+    "name": "Rutt's Hut",
+    "spaces": [
+      {
+        "floor": "f_611c248cdb6f1d1c87691ba3",
+        "id": "s_92b6fa6adfb6ce47"
+      }
+    ],
+    "nodes": [
+      {
+        "map": "f_611c248cdb6f1d1c87691ba3",
+        "id": "n_611eae1a150a2c2324000a30"
+      }
+    ],
+    "polygons": []
+  },
+  {
+    "id": "eli_6ac1480b2463286a",
+    "parent": "el_67c08cbd70f673211c89823d",
+    "operationHours": [],
+    "name": "Miller Lite Bar in Miller Lite MVP Club",
+    "spaces": [
+      {
+        "floor": "f_611c20b8be28761cd2fbe492",
+        "id": "s_37697468dc037f07"
+      },
+      {
+        "floor": "f_611c20b8be28761cd2fbe492",
+        "id": "s_0eae423e78dbd5ef"
+      },
+      {
+        "floor": "f_611c20b8be28761cd2fbe492",
+        "id": "s_521effab89c3fe8f"
+      }
+    ],
+    "nodes": [
+      {
+        "map": "f_611c20b8be28761cd2fbe492",
+        "id": "n_67c75d872bd361ac46eca21a"
+      },
+      {
+        "map": "f_611c20b8be28761cd2fbe492",
+        "id": "n_67c75d8c2bd361ac46eca21b"
+      },
+      {
+        "map": "f_611c20b8be28761cd2fbe492",
+        "id": "n_67c75d8f2bd361ac46eca21c"
+      }
+    ],
+    "polygons": []
+  },
+  {
+    "id": "eli_9d764e58bcadceda",
+    "parent": "el_67c08d1370f673211c89823e",
+    "operationHours": [],
+    "name": "Corona Bar in Corona Beach Club",
+    "spaces": [
+      {
+        "floor": "f_611c20b8be28761cd2fbe492",
+        "id": "s_dfbc6ef1d609981c"
+      },
+      {
+        "floor": "f_611c20b8be28761cd2fbe492",
+        "id": "s_f62ecff0e87a6458"
+      },
+      {
+        "floor": "f_611c20b8be28761cd2fbe492",
+        "id": "s_4f29c66085d9d81c"
+      }
+    ],
+    "nodes": [
+      {
+        "map": "f_611c20b8be28761cd2fbe492",
+        "id": "n_67c758972bd361ac46eca20c"
+      },
+      {
+        "map": "f_611c20b8be28761cd2fbe492",
+        "id": "n_67c75a712bd361ac46eca211"
+      },
+      {
+        "map": "f_611c20b8be28761cd2fbe492",
+        "id": "n_67c75a682bd361ac46eca20e"
+      }
+    ],
+    "polygons": []
+  }
+]

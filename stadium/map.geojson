@@ -1,0 +1,65 @@
+[
+  {
+    "id": "f_611c1e578ead10d83993b2c7",
+    "externalId": "MAP-6RME88J6",
+    "elevation": 0,
+    "name": "Plaza Level",
+    "shortName": "Plaza Level"
+  },
+  {
+    "id": "f_611c1ed68ead103a2b93b2c8",
+    "externalId": "MAP-VU1C6ZC0",
+    "elevation": 1,
+    "name": "100 Concourse ",
+    "shortName": "100 Concourse "
+  },
+  {
+    "id": "f_611c1f4ebe2876696bfbe491",
+    "externalId": "MAP-CLDMP5FE",
+    "elevation": 2,
+    "name": "Suite Level 3",
+    "shortName": "Suite Level 3"
+  },
+  {
+    "id": "f_611c20b8be28761cd2fbe492",
+    "externalId": "MAP-IK5P7B1H",
+    "elevation": 3,
+    "name": "200 Concourse",
+    "shortName": "200 Concourse"
+  },
+  {
+    "id": "f_611c2378be28763493fbe493",
+    "externalId": "MAP-OSWA6NF4",
+    "elevation": 4,
+    "name": "Suite Level 5",
+    "shortName": "Suite Level 5"
+  },
+  {
+    "id": "f_611c23e9bff1054eec430509",
+    "externalId": "MAP-B4HXTLIJ",
+    "elevation": 5,
+    "name": "Suite Level 6",
+    "shortName": "Suite Level 6"
+  },
+  {
+    "id": "f_611c248cdb6f1d1c87691ba3",
+    "externalId": "MAP-U2ARXVBL",
+    "elevation": 6,
+    "name": "300 Concourse",
+    "shortName": "300 Concourse"
+  },
+  {
+    "id": "f_6137a58384b04e12be89688b",
+    "externalId": "MAP-ZWN3XKZ7",
+    "elevation": 7,
+    "name": "Upper Concourse",
+    "shortName": "Upper Concourse"
+  },
+  {
+    "id": "f_67eec612a80a626c5421b4a4",
+    "externalId": "MAP-WYLHQLSR",
+    "elevation": 0,
+    "name": "Outdoors",
+    "shortName": "Outdoors"
+  }
+]

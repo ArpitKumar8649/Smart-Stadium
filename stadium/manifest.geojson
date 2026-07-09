@@ -1,0 +1,154 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -74.07777029962746,
+          40.8160776841257
+        ]
+      },
+      "properties": {
+        "folder_struct": [
+          {
+            "type": "file",
+            "name": "connection.json"
+          },
+          {
+            "type": "file",
+            "name": "floor.geojson"
+          },
+          {
+            "type": "file",
+            "name": "map.geojson"
+          },
+          {
+            "type": "file",
+            "name": "mapstack.geojson"
+          },
+          {
+            "type": "file",
+            "name": "floorstack.json"
+          },
+          {
+            "type": "file",
+            "name": "node.geojson"
+          },
+          {
+            "type": "file",
+            "name": "facade"
+          },
+          {
+            "type": "file",
+            "name": "floorImages"
+          },
+          {
+            "type": "folder",
+            "name": "space",
+            "children": [
+              {
+                "type": "file",
+                "name": "f_611c1e578ead10d83993b2c7.geojson"
+              },
+              {
+                "type": "file",
+                "name": "f_611c1ed68ead103a2b93b2c8.geojson"
+              },
+              {
+                "type": "file",
+                "name": "f_611c1f4ebe2876696bfbe491.geojson"
+              },
+              {
+                "type": "file",
+                "name": "f_611c20b8be28761cd2fbe492.geojson"
+              },
+              {
+                "type": "file",
+                "name": "f_611c2378be28763493fbe493.geojson"
+              },
+              {
+                "type": "file",
+                "name": "f_611c23e9bff1054eec430509.geojson"
+              },
+              {
+                "type": "file",
+                "name": "f_611c248cdb6f1d1c87691ba3.geojson"
+              },
+              {
+                "type": "file",
+                "name": "f_6137a58384b04e12be89688b.geojson"
+              },
+              {
+                "type": "file",
+                "name": "f_67eec612a80a626c5421b4a4.geojson"
+              }
+            ]
+          },
+          {
+            "type": "file",
+            "name": "styles.json"
+          },
+          {
+            "type": "folder",
+            "name": "enterprise",
+            "children": [
+              {
+                "type": "file",
+                "name": "locations.json"
+              },
+              {
+                "type": "file",
+                "name": "categories.json"
+              },
+              {
+                "type": "file",
+                "name": "venue.json"
+              },
+              {
+                "type": "file",
+                "name": "locationInstances.json"
+              },
+              {
+                "type": "file",
+                "name": "layers.json"
+              },
+              {
+                "type": "file",
+                "name": "categoryPriorities.json"
+              },
+              {
+                "type": "file",
+                "name": "enterpriseStyles.json"
+              },
+              {
+                "type": "file",
+                "name": "textures.json"
+              },
+              {
+                "type": "file",
+                "name": "floorText.json"
+              }
+            ]
+          },
+          {
+            "type": "file",
+            "name": "navigationFlags.json"
+          },
+          {
+            "type": "file",
+            "name": "tileset.json"
+          }
+        ],
+        "name": "MetLife Stadium",
+        "time": "2026-06-12T16:59:18.731Z",
+        "version": "2.0.0",
+        "naturalBearing": 78.767006537415,
+        "language": "en",
+        "map": "metlife-stadium",
+        "org_id": "610311923609ae001ccda502"
+      }
+    }
+  ]
+}
