@@ -19,6 +19,8 @@ const RawEnvSchema = z.object({
   FIREBASE_PROJECT_ID: z.string().optional(),
 
   ADMIN_UIDS: z.string().default(''),
+  // Demo/admin console credential. Store only in backend/.env or hosting secrets.
+  ADMIN_DEMO_TOKEN: z.string().min(12).optional(),
 
   ALLOWED_ORIGINS: z.string().default('http://localhost:5173'),
 

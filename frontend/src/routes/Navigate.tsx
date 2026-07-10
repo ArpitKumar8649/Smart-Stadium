@@ -7,6 +7,9 @@ import {
   type RouteMapPoint,
 } from '../features/navigate/MapCanvas.tsx';
 import { densityColor, densityLabel } from '../features/navigate/crowdStyle.ts';
+import { useAlerts } from '../features/alerts/AlertContext.tsx';
+import { useA11y } from '../features/accessibility/A11yContext.tsx';
+import { A11yTogglePanel } from '../features/accessibility/A11yTogglePanel.tsx';
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? 'http://localhost:8080';
 
@@ -55,9 +58,10 @@ function humanTime(seconds: number): string {
 }
 
 export default function Navigate() {
+  const { prefs } = useA11y();
   const [fromLabel, setFromLabel] = useState('Section 144');
   const [toLabel, setToLabel] = useState("Women's Restroom");
-  const [mode, setMode] = useState<RoutingMode>('low_crowd');
+  const [mode, setMode] = useState<RoutingMode>(prefs.step_free ? 'step_free' : 'low_crowd');
   const [activeFloor, setActiveFloor] = useState(1);
   const [forecast, setForecast] = useState<ForecastOffset>(0);
   const [route, setRoute] = useState<RouteResponse | null>(null);
@@ -65,6 +69,8 @@ export default function Navigate() {
   const [selectedZone, setSelectedZone] = useState<CrowdMapZone | null>(null);
   const [loadingRoute, setLoadingRoute] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const { activeAlerts, dismissAlert } = useAlerts();
 
   const refreshCrowd = useCallback(async () => {
     try {
@@ -201,6 +207,40 @@ export default function Navigate() {
 
       <section className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
         <div className="min-w-0">
+
+          {/* Fan Alert Feed */}
+          {activeAlerts.length > 0 && (
+            <div className="mb-4 space-y-2">
+              {activeAlerts.map(alert => (
+                <div key={alert.id} className={`flex items-start justify-between gap-4 rounded-xl border p-3 shadow-lg ${
+                  alert.severity === 'critical' ? 'border-red-900 bg-red-950/40 text-red-100' :
+                  alert.severity === 'warn' ? 'border-amber-900 bg-amber-950/40 text-amber-100' :
+                  'border-blue-900 bg-blue-950/40 text-blue-100'
+                }`}>
+                  <div>
+                    <h3 className="text-sm font-bold">{alert.title}</h3>
+                    <p className="mt-1 text-xs opacity-90">{alert.body}</p>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <button
+                      onClick={() => void planRoute()}
+                      className="rounded-lg bg-surface-950/50 px-3 py-1.5 text-xs font-semibold hover:bg-surface-900/50"
+                    >
+                      Re-plan Route
+                    </button>
+                    <button
+                      onClick={() => dismissAlert(alert.id)}
+                      className="rounded-lg px-2 py-1.5 text-xs opacity-70 hover:bg-surface-950/50 hover:opacity-100"
+                      aria-label="Dismiss alert"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
           <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
             <div className="flex max-w-full gap-1 overflow-x-auto rounded-xl border border-surface-800 bg-surface-900 p-1" role="tablist" aria-label="Stadium floor">
               {FLOORS.map((floor) => (
@@ -359,6 +399,8 @@ export default function Navigate() {
               })}
             </ul>
           </section>
+
+          <A11yTogglePanel />
         </aside>
       </section>
     </main>

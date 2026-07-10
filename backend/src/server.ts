@@ -11,6 +11,9 @@ import { healthRouter } from './routes/health.js';
 import { chatRouter } from './routes/chat.js';
 import { crowdRouter } from './routes/crowd.js';
 import { navigationRouter } from './routes/navigation.js';
+import { visionRouter } from './routes/vision.js';
+import { adminRouter } from './routes/admin.js';
+import { alertsRouter } from './routes/alerts.js';
 import { getCrowdSimulator } from './services/crowd/simulator.js';
 
 const app = express();
@@ -68,6 +71,9 @@ app.use('/api', healthRouter);
 app.use('/api', chatRouter);
 app.use('/api', crowdRouter);
 app.use('/api', navigationRouter);
+app.use('/api', visionRouter);
+app.use('/api', adminRouter);
+app.use('/api', alertsRouter);
 
 app.use('*', (_req, res) => {
   res.status(404).json({

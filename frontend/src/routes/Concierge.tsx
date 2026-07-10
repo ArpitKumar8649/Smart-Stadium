@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Wordmark } from '../components/brand/Logo.tsx';
 import { useConcierge } from '../features/concierge/useConcierge.ts';
 import { MessageBubble } from '../features/concierge/MessageBubble.tsx';
+import { SignReader } from '../features/accessibility/SignReader.tsx';
 
 const LANGS = [
   { code: 'en', label: 'English' },
@@ -122,6 +123,14 @@ export default function Concierge() {
                   {s}
                 </button>
               ))}
+            </div>
+            <div className="w-full sm:w-1/2">
+              <SignReader
+                lang={lang}
+                onDescription={(desc) => {
+                  void send(`I saw a sign that says: ${desc}. What does this mean?`, lang);
+                }}
+              />
             </div>
           </div>
         ) : (
