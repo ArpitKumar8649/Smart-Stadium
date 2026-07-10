@@ -10,7 +10,7 @@ const baseOptions: LoggerOptions = {
       'req.headers.cookie',
       'req.body.image_b64',
       'req.body.imageBase64',
-      'GEMINI_API_KEY',
+      'DASHSCOPE_API_KEY',
       'FIREBASE_SERVICE_ACCOUNT_JSON',
     ],
     censor: '[REDACTED]',

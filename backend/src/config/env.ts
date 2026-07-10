@@ -5,10 +5,15 @@ const RawEnvSchema = z.object({
   PORT: z.coerce.number().int().positive().default(8080),
   LOG_LEVEL: z.enum(['trace', 'debug', 'info', 'warn', 'error', 'fatal']).default('info'),
 
-  GEMINI_API_KEY: z.string().min(1).optional(),
-  GEMINI_MODEL_FLASH: z.string().default('gemini-2.5-flash'),
-  GEMINI_MODEL_PRO: z.string().default('gemini-2.5-pro'),
-  GEMINI_MODEL_EMBED: z.string().default('text-embedding-004'),
+  // DashScope (Qwen) — OpenAI-compatible endpoint. See ADR 0003.
+  DASHSCOPE_API_KEY: z.string().min(1).optional(),
+  DASHSCOPE_BASE_URL: z
+    .string()
+    .url()
+    .default('https://dashscope-intl.aliyuncs.com/compatible-mode/v1'),
+  QWEN_MODEL_CHAT: z.string().default('qwen-plus'),
+  QWEN_MODEL_VL: z.string().default('qwen-vl-max'),
+  QWEN_MODEL_EMBED: z.string().default('text-embedding-v3'),
 
   FIREBASE_SERVICE_ACCOUNT_JSON: z.string().optional(),
   FIREBASE_PROJECT_ID: z.string().optional(),
@@ -22,8 +27,9 @@ const RawEnvSchema = z.object({
     .transform((v) => v === 'true')
     .default('true'),
 
-  GEMINI_BUCKET_SIZE: z.coerce.number().int().positive().default(12),
-  GEMINI_BUCKET_REFILL_PER_MIN: z.coerce.number().int().positive().default(12),
+  // LLM concurrency guard (token bucket). See ADR 0007.
+  LLM_BUCKET_SIZE: z.coerce.number().int().positive().default(12),
+  LLM_BUCKET_REFILL_PER_MIN: z.coerce.number().int().positive().default(12),
 });
 
 const parsed = RawEnvSchema.safeParse(process.env);
