@@ -23,6 +23,7 @@ import {
   type GraphIndex as LoaderGraphIndex,
 } from '../graph/loader.js';
 import { route } from '../graph/astar.js';
+import { getCrowdSimulator } from '../crowd/simulator.js';
 
 /** Uniform result envelope for every tool call. */
 export interface ToolResult {
@@ -121,6 +122,13 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
           description:
             'If true, prefer a step-free facility and route (wheelchair/stroller friendly). Default false.',
         },
+        dietary: {
+          type: 'string',
+          enum: ['halal', 'vegetarian'],
+          description:
+            'Only for facility_type "concession": restrict to halal or vegetarian food outlets. ' +
+            'Set this whenever the guest asks for halal or vegetarian/vegan food.',
+        },
       },
       required: ['from_label', 'facility_type'],
       additionalProperties: false,
@@ -186,6 +194,27 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
       additionalProperties: false,
     },
   },
+  {
+    name: 'get_crowd',
+    description:
+      'Current crowd density and queue wait for a place or zone, with a short-term projection ' +
+      '(T+15 / T+30 min). Call this for "is it busy", "how long is the line", "should I go now" ' +
+      'questions, or before recommending a facility during the halftime rush. Crowd data is ' +
+      'simulated for this preview — say so if asked. Omit `place` to get the busiest zones overall.',
+    parameters: {
+      type: 'object',
+      properties: {
+        place: {
+          type: 'string',
+          description:
+            'A place or area the guest names, e.g. "Section 144", "Level 1 restrooms", "food court". ' +
+            'Omit to summarise the most crowded zones in the venue right now.',
+        },
+      },
+      required: [],
+      additionalProperties: false,
+    },
+  },
 ];
 
 // ---------------------------------------------------------------------------
@@ -202,6 +231,7 @@ const FindNearestArgs = z.object({
   from_label: z.string().min(1),
   facility_type: z.enum(FACILITY_TYPES),
   step_free: z.boolean().default(false),
+  dietary: z.enum(['halal', 'vegetarian']).optional(),
 });
 
 const GetVenueInfoArgs = z.object({
@@ -215,6 +245,10 @@ const ListFacilitiesArgs = z.object({
 
 const ResolvePlaceArgs = z.object({
   query: z.string().min(1),
+});
+
+const GetCrowdArgs = z.object({
+  place: z.string().min(1).optional(),
 });
 
 // ---------------------------------------------------------------------------
@@ -323,7 +357,10 @@ function handleFindRoute(raw: unknown): ToolResult {
     );
   }
 
-  const result = route(routerGraph(getGraph()), from.id, to.id, mode);
+  const sim = getCrowdSimulator();
+  const result = route(routerGraph(getGraph()), from.id, to.id, mode, (id) =>
+    sim.crowdPenaltyForNode(id),
+  );
   if (!result) {
     return fail(
       `No ${mode} route exists between "${from.label}" and "${to.label}".`,
@@ -338,7 +375,7 @@ function handleFindRoute(raw: unknown): ToolResult {
 function handleFindNearest(raw: unknown): ToolResult {
   const parsed = FindNearestArgs.safeParse(raw);
   if (!parsed.success) return fail(`Invalid find_nearest arguments: ${zodMessage(parsed.error)}`);
-  const { from_label, facility_type, step_free } = parsed.data;
+  const { from_label, facility_type, step_free, dietary } = parsed.data;
 
   const from = findNodeByLabel(from_label);
   if (!from) {
@@ -350,15 +387,19 @@ function handleFindNearest(raw: unknown): ToolResult {
     );
   }
 
+  // Dietary filter only applies to food outlets.
+  const dietaryActive = dietary && facility_type === 'concession';
   const candidates = nearestNodesByType(from.id, facility_type as NodeType, {
     limit: 5,
     requireStepFree: step_free,
+    ...(dietaryActive ? { dietary } : {}),
   });
   if (candidates.length === 0) {
+    const dietaryNote = dietaryActive ? ` tagged ${dietary}` : '';
     return fail(
-      `No ${facility_type.replace(/_/g, ' ')} found near "${from.label}"` +
+      `No ${facility_type.replace(/_/g, ' ')}${dietaryNote} found near "${from.label}"` +
         (step_free ? ' with step-free access.' : '.'),
-      `No ${facility_type} near ${from.label}`,
+      `No ${dietaryActive ? dietary + ' ' : ''}${facility_type} near ${from.label}`,
     );
   }
 
@@ -366,10 +407,11 @@ function handleFindNearest(raw: unknown): ToolResult {
   // nearest is unreachable in the requested mode, fall through to the next.
   const mode = step_free ? 'step_free' : 'fastest';
   const graph = routerGraph(getGraph());
+  const sim = getCrowdSimulator();
   let chosen: Node | undefined;
   let result: RouteResponse | null = null;
   for (const candidate of candidates) {
-    const r = route(graph, from.id, candidate.id, mode);
+    const r = route(graph, from.id, candidate.id, mode, (id) => sim.crowdPenaltyForNode(id));
     if (r) {
       chosen = candidate;
       result = r;
@@ -392,9 +434,10 @@ function handleFindNearest(raw: unknown): ToolResult {
       .slice(0, 3)
       .map((c) => c.label),
   };
-  const summary = `Nearest ${facility_type.replace(/_/g, ' ')}: ${chosen.label}, ${humanDuration(
-    result.total_seconds,
-  )}`;
+  const summary = `Nearest ${dietaryActive ? dietary + ' ' : ''}${facility_type.replace(
+    /_/g,
+    ' ',
+  )}: ${chosen.label}, ${humanDuration(result.total_seconds)}`;
   return ok(data, summary);
 }
 
@@ -489,6 +532,84 @@ function handleResolvePlace(raw: unknown): ToolResult {
   return ok(data, summary);
 }
 
+function densityBand(d: number): string {
+  if (d < 0.25) return 'quiet';
+  if (d < 0.5) return 'moderate';
+  if (d < 0.75) return 'busy';
+  return 'packed';
+}
+
+function crowdView(level: {
+  zone_id: string;
+  density: number;
+  wait_seconds: number;
+  source: string;
+  predictions?: Array<{ offset_minutes: number; density: number; confidence: number }> | undefined;
+}, label?: string) {
+  return {
+    zone: label ?? level.zone_id,
+    level: densityBand(level.density),
+    density: level.density,
+    wait: humanDuration(level.wait_seconds),
+    simulated: level.source === 'sim' || level.source === 'injected',
+    projection: (level.predictions ?? []).map((p) => ({
+      in_minutes: p.offset_minutes,
+      level: densityBand(p.density),
+      confidence: p.confidence,
+    })),
+  };
+}
+
+function handleGetCrowd(raw: unknown): ToolResult {
+  const parsed = GetCrowdArgs.safeParse(raw);
+  if (!parsed.success) return fail(`Invalid get_crowd arguments: ${zodMessage(parsed.error)}`);
+  const { place } = parsed.data;
+  const sim = getCrowdSimulator();
+
+  // No place → summarise the busiest zones right now.
+  if (!place) {
+    const zones = [...sim.getZones()];
+    const byId = new Map(zones.map((z) => [z.id, z.label]));
+    const top = sim
+      .getHeatmap()
+      .zones.slice()
+      .sort((a, b) => b.density - a.density)
+      .slice(0, 5)
+      .map((z) => crowdView(z, byId.get(z.zone_id)));
+    return ok(
+      { phase: sim.phase(), busiest: top },
+      `Busiest now: ${top[0]?.zone ?? 'n/a'} (${top[0]?.level ?? '—'})`,
+    );
+  }
+
+  // Resolve the place to a node → its zone.
+  const node = findNodeByLabel(place);
+  let level = node ? sim.getZoneForNode(node.id) : undefined;
+  let label: string | undefined;
+
+  if (level) {
+    label = sim.getZones().find((z) => z.id === level!.zone_id)?.label;
+  } else {
+    // Fall back to a zone whose label loosely matches the query.
+    const q = place.toLowerCase();
+    const zone = sim.getZones().find((z) => z.label.toLowerCase().includes(q));
+    if (zone) {
+      level = sim.getZone(zone.id);
+      label = zone.label;
+    }
+  }
+
+  if (!level) {
+    return fail(
+      `Could not find crowd data for "${place}".`,
+      `No crowd data for "${place}"`,
+    );
+  }
+
+  const view = crowdView(level, label);
+  return ok({ phase: sim.phase(), ...view }, `${view.zone}: ${view.level} (wait ${view.wait})`);
+}
+
 // ---------------------------------------------------------------------------
 // Dispatch
 // ---------------------------------------------------------------------------
@@ -511,6 +632,8 @@ export async function handleToolCall(name: string, args: unknown): Promise<ToolR
         return handleListFacilities(args);
       case 'resolve_place':
         return handleResolvePlace(args);
+      case 'get_crowd':
+        return handleGetCrowd(args);
       default:
         return fail(`Unknown tool: ${name}`, `Unknown tool: ${name}`);
     }

@@ -6,6 +6,8 @@ import { logger } from './middleware/logger.js';
 import { errorHandler } from './middleware/error.js';
 import { healthRouter } from './routes/health.js';
 import { chatRouter } from './routes/chat.js';
+import { crowdRouter } from './routes/crowd.js';
+import { getCrowdSimulator } from './services/crowd/simulator.js';
 
 const app = express();
 
@@ -33,6 +35,7 @@ app.use(express.urlencoded({ extended: false }));
 
 app.use('/api', healthRouter);
 app.use('/api', chatRouter);
+app.use('/api', crowdRouter);
 
 app.use('*', (_req, res) => {
   res.status(404).json({
@@ -48,4 +51,8 @@ app.listen(port, () => {
     { port, env: env.NODE_ENV, allowedOrigins: env.allowedOrigins },
     `🏟  Concourse backend listening on :${port}`,
   );
+  // Boot the crowd simulator so /api/crowd and the low_crowd routing mode are live.
+  if (env.CROWD_SIM_ENABLED) {
+    getCrowdSimulator().start();
+  }
 });

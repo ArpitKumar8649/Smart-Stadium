@@ -212,12 +212,19 @@ const STEP_FREE_TAGS: ReadonlyArray<Node['accessibility'][number]> = ['step_free
  * 'step_free' or 'wheelchair'; it does not guarantee a step-free path exists.
  * Returns [] if the origin node is unknown.
  */
+export interface NearestOpts {
+  limit?: number;
+  requireStepFree?: boolean;
+  /** If set, only return nodes tagged halal/vegetarian (food concessions). */
+  dietary?: 'halal' | 'vegetarian';
+}
+
 export function nearestNodesByType(
   fromNodeId: string,
   type: NodeType,
-  opts: { limit?: number; requireStepFree?: boolean } = {},
+  opts: NearestOpts = {},
 ): Node[] {
-  const { limit = 5, requireStepFree = false } = opts;
+  const { limit = 5, requireStepFree = false, dietary } = opts;
   const graph = getGraph();
   const origin = graph.nodeById.get(fromNodeId);
   if (!origin) return [];
@@ -227,6 +234,8 @@ export function nearestNodesByType(
   for (const node of candidates) {
     if (node.id === fromNodeId) continue;
     if (requireStepFree && !node.accessibility.some((a) => STEP_FREE_TAGS.includes(a))) continue;
+    if (dietary === 'halal' && !node.halal) continue;
+    if (dietary === 'vegetarian' && !node.vegetarian) continue;
     ranked.push({ node, dist: haversineMeters(origin.coords, node.coords) });
   }
   ranked.sort((a, b) => a.dist - b.dist);
