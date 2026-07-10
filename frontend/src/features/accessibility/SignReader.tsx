@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
 
-const API_BASE = import.meta.env.VITE_API_BASE ?? 'http://localhost:8080';
+const API_BASE = import.meta.env.VITE_API_BASE ?? '';
 
 export function SignReader({ lang = 'en', onDescription }: { lang?: string, onDescription: (text: string) => void }) {
   const [loading, setLoading] = useState(false);

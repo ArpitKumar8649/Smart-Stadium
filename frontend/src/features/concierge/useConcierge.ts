@@ -17,7 +17,7 @@ type StreamEvent =
   | { type: 'done'; usage?: { input_tokens: number; output_tokens: number } }
   | { type: 'error'; code: string; message: string };
 
-const API_BASE = import.meta.env.VITE_API_BASE ?? 'http://localhost:8080';
+const API_BASE = import.meta.env.VITE_API_BASE ?? '';
 
 let idSeq = 0;
 const nextId = () => `m${Date.now()}_${idSeq++}`;

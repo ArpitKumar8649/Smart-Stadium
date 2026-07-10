@@ -5,7 +5,7 @@ import { MapCanvas, type CrowdMapZone } from '../features/navigate/MapCanvas.tsx
 import { densityColor } from '../features/navigate/crowdStyle.ts';
 import type { Briefing, BriefingConcern, BriefingRecommendation } from '@concourse/shared';
 
-const API_BASE = import.meta.env.VITE_API_BASE ?? 'http://localhost:8080';
+const API_BASE = import.meta.env.VITE_API_BASE ?? '';
 
 // Simple passcode gate (falls back to env var if deployed, otherwise hardcoded demo)
 const DEMO_TOKEN = import.meta.env.VITE_ADMIN_DEMO_TOKEN ?? 'concourse-local-admin-2026';

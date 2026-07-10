@@ -18,6 +18,7 @@ import { getCrowdSimulator } from './services/crowd/simulator.js';
 
 const app = express();
 app.disable('x-powered-by');
+app.set('trust proxy', 1);
 
 // Security headers. contentSecurityPolicy off here because the API serves JSON/SSE
 // only; the frontend (Firebase Hosting) sets its own CSP.

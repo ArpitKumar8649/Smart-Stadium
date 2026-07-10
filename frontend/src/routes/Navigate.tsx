@@ -11,7 +11,7 @@ import { useAlerts } from '../features/alerts/AlertContext.tsx';
 import { useA11y } from '../features/accessibility/A11yContext.tsx';
 import { A11yTogglePanel } from '../features/accessibility/A11yTogglePanel.tsx';
 
-const API_BASE = import.meta.env.VITE_API_BASE ?? 'http://localhost:8080';
+const API_BASE = import.meta.env.VITE_API_BASE ?? '';
 
 const FLOORS = [
   { level: 0, label: 'Plaza' },
