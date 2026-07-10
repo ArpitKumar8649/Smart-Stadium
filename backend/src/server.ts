@@ -1,5 +1,8 @@
 import express from 'express';
 import cors from 'cors';
+import helmet from 'helmet';
+import compression from 'compression';
+import rateLimit from 'express-rate-limit';
 import pinoHttp from 'pino-http';
 import { env } from './config/env.js';
 import { logger } from './middleware/logger.js';
@@ -10,6 +13,15 @@ import { crowdRouter } from './routes/crowd.js';
 import { getCrowdSimulator } from './services/crowd/simulator.js';
 
 const app = express();
+app.disable('x-powered-by');
+
+// Security headers. contentSecurityPolicy off here because the API serves JSON/SSE
+// only; the frontend (Firebase Hosting) sets its own CSP.
+app.use(helmet({ contentSecurityPolicy: false }));
+
+// gzip responses (JSON heatmap/route payloads compress well). SSE is skipped
+// automatically by compression when it sees text/event-stream.
+app.use(compression());
 
 app.use(
   pinoHttp({
@@ -32,6 +44,24 @@ app.use(
 
 app.use(express.json({ limit: '2mb' }));
 app.use(express.urlencoded({ extended: false }));
+
+// Rate limits. A generous global limit protects the instance; the chat endpoint
+// (which fans out to the LLM) gets a tighter per-IP budget to guard the free tier.
+const globalLimiter = rateLimit({
+  windowMs: 60_000,
+  limit: 120,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+});
+const chatLimiter = rateLimit({
+  windowMs: 60_000,
+  limit: 20,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  message: { error: { code: 'rate_limited', message: 'Too many requests — give Concourse a moment.' } },
+});
+app.use('/api', globalLimiter);
+app.use('/api/chat', chatLimiter);
 
 app.use('/api', healthRouter);
 app.use('/api', chatRouter);

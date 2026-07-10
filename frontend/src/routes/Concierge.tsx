@@ -43,6 +43,19 @@ export default function Concierge() {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
   }, [messages]);
 
+  // Keep <html lang>/dir in sync with the chosen language (WCAG + RTL for Arabic).
+  useEffect(() => {
+    const root = document.documentElement;
+    const prevLang = root.lang;
+    const prevDir = root.dir;
+    root.lang = lang;
+    root.dir = lang === 'ar' ? 'rtl' : 'ltr';
+    return () => {
+      root.lang = prevLang;
+      root.dir = prevDir;
+    };
+  }, [lang]);
+
   const submit = (text: string) => {
     const t = text.trim();
     if (!t || busy) return;

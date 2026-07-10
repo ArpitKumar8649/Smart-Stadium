@@ -52,7 +52,6 @@ const FACILITY_TYPES = [
   'parking_link',
   'family_room',
 ] as const;
-type FacilityType = (typeof FACILITY_TYPES)[number];
 
 /** Human names for the concourse levels, for get_venue_info. */
 const LEVEL_NAMES: Readonly<Record<number, string>> = {

@@ -9,7 +9,7 @@
     "build": "tsc -p tsconfig.json --emitDeclarationOnly false --noEmit && vite build",
     "preview": "vite preview --host --port 4173",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "lint": "eslint 'src/**/*.{ts,tsx}'"
+    "lint": "eslint . --max-warnings=100"
   },
   "dependencies": {
     "@concourse/shared": "0.1.0",
