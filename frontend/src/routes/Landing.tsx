@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { Wordmark } from '../components/brand/Logo.tsx';
 
 const FEATURES = [
@@ -51,12 +52,12 @@ export default function Landing() {
           specific gate, the step-free route, the current wait time — and the exact minute to leave.
         </p>
         <div className="mt-8 flex flex-wrap gap-3">
-          <button
-            type="button"
+          <Link
+            to="/concierge"
             className="rounded-pill bg-primary px-6 py-3 font-semibold text-surface-950 transition hover:bg-primary-400"
           >
             Try Concourse
-          </button>
+          </Link>
           <button
             type="button"
             className="rounded-pill border border-surface-700 px-6 py-3 font-semibold text-surface-100 transition hover:border-surface-500"
