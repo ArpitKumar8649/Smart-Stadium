@@ -1,6 +1,7 @@
 import { Route, Routes } from 'react-router-dom';
 import Landing from '../routes/Landing.tsx';
 import Concierge from '../routes/Concierge.tsx';
+import Navigate from '../routes/Navigate.tsx';
 import NotFound from '../routes/NotFound.tsx';
 
 export default function App() {
@@ -8,6 +9,7 @@ export default function App() {
     <Routes>
       <Route path="/" element={<Landing />} />
       <Route path="/concierge" element={<Concierge />} />
+      <Route path="/navigate" element={<Navigate />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   );

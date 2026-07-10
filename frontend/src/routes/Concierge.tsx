@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Wordmark } from '../components/brand/Logo.tsx';
 import { useConcierge } from '../features/concierge/useConcierge.ts';
 import { MessageBubble } from '../features/concierge/MessageBubble.tsx';
@@ -68,7 +69,16 @@ export default function Concierge() {
   return (
     <div className="mx-auto flex h-[100dvh] max-w-2xl flex-col px-4">
       <header className="flex items-center justify-between py-4">
-        <Wordmark />
+        <Link to="/" aria-label="Back to Concourse home">
+          <Wordmark />
+        </Link>
+        <div className="flex items-center gap-2">
+          <Link
+            to="/navigate"
+            className="min-h-10 rounded-pill border border-surface-700 px-3 py-2 text-xs font-semibold text-surface-200 transition hover:border-primary hover:text-primary"
+          >
+            Map
+          </Link>
         <label className="sr-only" htmlFor="lang">
           Language
         </label>
@@ -84,6 +94,7 @@ export default function Concierge() {
             </option>
           ))}
         </select>
+        </div>
       </header>
 
       <div

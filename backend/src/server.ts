@@ -10,6 +10,7 @@ import { errorHandler } from './middleware/error.js';
 import { healthRouter } from './routes/health.js';
 import { chatRouter } from './routes/chat.js';
 import { crowdRouter } from './routes/crowd.js';
+import { navigationRouter } from './routes/navigation.js';
 import { getCrowdSimulator } from './services/crowd/simulator.js';
 
 const app = express();
@@ -66,6 +67,7 @@ app.use('/api/chat', chatLimiter);
 app.use('/api', healthRouter);
 app.use('/api', chatRouter);
 app.use('/api', crowdRouter);
+app.use('/api', navigationRouter);
 
 app.use('*', (_req, res) => {
   res.status(404).json({
