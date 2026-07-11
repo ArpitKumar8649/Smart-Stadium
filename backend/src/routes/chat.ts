@@ -18,7 +18,7 @@ chatRouter.post('/chat', async (req, res) => {
     });
     return;
   }
-  const { message, lang, location_node_id } = parsed.data;
+  const { message, history, lang, location_node_id } = parsed.data;
 
   res.writeHead(200, {
     'Content-Type': 'text/event-stream',
@@ -48,6 +48,7 @@ chatRouter.post('/chat', async (req, res) => {
   try {
     for await (const ev of runConciergeTurn({
       message,
+      ...(history ? { history } : {}),
       ...(lang ? { lang } : {}),
       ...(locationLabel ? { locationLabel } : {}),
       signal: ac.signal,

@@ -32,6 +32,10 @@ export function useConcierge(sessionId: string) {
   const [busy, setBusy] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
 
+  // Use a ref for history to avoid stale closures in the useCallback without triggering re-renders
+  const historyRef = useRef<ChatMessage[]>([]);
+  historyRef.current = messages;
+
   const send = useCallback(
     async (text: string, lang?: string, locationNodeId?: string) => {
       if (!text.trim() || busy) return;
@@ -40,6 +44,13 @@ export function useConcierge(sessionId: string) {
       const userMsg: ChatMessage = { id: nextId(), role: 'user', text };
       const asstId = nextId();
       const asstMsg: ChatMessage = { id: asstId, role: 'assistant', text: '', tools: [], streaming: true };
+
+      // Capture current history before we append the new messages
+      const historyToSent = historyRef.current.map(m => ({
+        role: m.role,
+        content: m.text
+      }));
+
       setMessages((m) => [...m, userMsg, asstMsg]);
 
       const patch = (fn: (m: ChatMessage) => ChatMessage) =>
@@ -55,6 +66,7 @@ export function useConcierge(sessionId: string) {
           body: JSON.stringify({
             session_id: sessionId,
             message: text,
+            history: historyToSent,
             ...(lang ? { lang } : {}),
             ...(locationNodeId ? { location_node_id: locationNodeId } : {}),
           }),

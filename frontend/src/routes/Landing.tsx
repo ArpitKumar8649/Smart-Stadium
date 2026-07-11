@@ -5,83 +5,132 @@ const FEATURES = [
   {
     title: 'Multilingual concierge',
     body: 'Ask anything about your matchday — in 30+ languages, by voice or by text.',
+    icon: '💬',
   },
   {
     title: 'Indoor navigation',
-    body: 'Turn-by-turn from your gate to your seat, narrated in your language.',
+    body: 'Turn-by-turn from your gate to your seat, using real MetLife Stadium geometry.',
+    icon: '🗺️',
   },
   {
     title: 'Live crowd awareness',
     body: 'See where queues are forming. Reroute before you hit the halftime surge.',
+    icon: '👥',
   },
   {
     title: 'Accessibility built-in',
-    body: 'Step-free routes, sensory-safe zones, and a camera-based sign reader.',
+    body: 'Step-free routing, sensory-safe zones, and a camera-based sign reader.',
+    icon: '♿',
   },
   {
     title: 'Real-time decisions',
-    body: 'Gate changes, delays, and "leave now" nudges — before you need them.',
+    body: 'Proactive nudges via SSE: gate changes, delays, and "leave now" alerts.',
+    icon: '⚡',
+  },
+  {
+    title: 'Operations Command',
+    body: 'A secure /admin dashboard with AI operational briefings and incident injection.',
+    icon: '🎛️',
   },
 ];
 
 export default function Landing() {
   return (
-    <main className="mx-auto min-h-screen max-w-5xl px-6 py-10">
-      <header className="flex items-center justify-between">
-        <Wordmark />
-        <a
-          href="https://github.com"
-          target="_blank"
-          rel="noreferrer"
-          className="text-sm text-surface-300 hover:text-surface-50"
-        >
-          GitHub
-        </a>
-      </header>
+    <div className="relative min-h-screen overflow-hidden bg-surface-950 font-sans text-surface-50">
+      {/* Background Ambient Glows */}
+      <div className="pointer-events-none absolute -left-[20%] -top-[10%] h-[500px] w-[500px] animate-float rounded-full bg-primary-900/40 blur-[120px]" />
+      <div className="pointer-events-none absolute -right-[10%] top-[30%] h-[400px] w-[400px] animate-float-delayed rounded-full bg-accent-600/20 blur-[120px]" />
+      <div className="pointer-events-none absolute bottom-[-10%] left-[20%] h-[600px] w-[600px] animate-float rounded-full bg-blue-900/20 blur-[150px]" />
 
-      <section className="mt-16">
-        <p className="font-mono text-sm uppercase tracking-widest text-primary">
-          FIFA World Cup 2026 · MetLife Stadium
-        </p>
-        <h1 className="mt-4 font-display text-5xl font-semibold leading-tight sm:text-6xl">
-          Your AI companion at every
-          <span className="text-primary"> gate, seat, and section.</span>
-        </h1>
-        <p className="mt-6 max-w-2xl text-lg text-surface-300">
-          Concourse is one GenAI agent that knows the stadium. Ask in any language and get the
-          specific gate, the step-free route, the current wait time — and the exact minute to leave.
-        </p>
-        <div className="mt-8 flex flex-wrap gap-3">
-          <Link
-            to="/concierge"
-            className="rounded-pill bg-primary px-6 py-3 font-semibold text-surface-950 transition hover:bg-primary-400"
-          >
-            Try Concourse
-          </Link>
-          <button
-            type="button"
-            className="rounded-pill border border-surface-700 px-6 py-3 font-semibold text-surface-100 transition hover:border-surface-500"
-          >
-            Watch the demo
-          </button>
-        </div>
-      </section>
+      <main className="relative z-10 mx-auto max-w-6xl px-6 py-8">
+        {/* Header */}
+        <header className="flex items-center justify-between glass-panel rounded-pill px-6 py-3">
+          <Wordmark />
+          <nav className="flex items-center gap-6 text-sm font-medium">
+            <a
+              href="https://github.com/ArpitKumar8649/Smart-Stadium"
+              target="_blank"
+              rel="noreferrer"
+              className="text-surface-300 transition hover:text-surface-50"
+            >
+              GitHub Repo
+            </a>
+            <Link
+              to="/admin"
+              className="rounded-pill bg-surface-800 px-4 py-2 text-surface-200 transition hover:bg-surface-700"
+            >
+              Staff Login
+            </Link>
+          </nav>
+        </header>
 
-      <section className="mt-24 grid gap-6 sm:grid-cols-2 lg:grid-cols-3" aria-label="Features">
-        {FEATURES.map((f) => (
-          <article
-            key={f.title}
-            className="rounded-2xl border border-surface-800 bg-surface-900 p-5"
-          >
-            <h2 className="font-display text-lg font-semibold text-surface-50">{f.title}</h2>
-            <p className="mt-2 text-sm text-surface-300">{f.body}</p>
-          </article>
-        ))}
-      </section>
+        {/* Hero Section */}
+        <section className="mt-24 flex flex-col items-center text-center lg:mt-32">
+          <div className="inline-flex items-center gap-2 rounded-pill border border-primary-800/50 bg-primary-950/30 px-3 py-1.5 text-xs font-semibold text-primary-300 backdrop-blur-md">
+            <span className="relative flex h-2 w-2">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary-400 opacity-75" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-primary-500" />
+            </span>
+            Live for FIFA World Cup 2026 · MetLife Stadium
+          </div>
 
-      <footer className="mt-24 border-t border-surface-800 pt-6 text-sm text-surface-400">
-        Built for PromptWars Virtual Challenge 4. Powered by Gemini + Google Antigravity.
-      </footer>
-    </main>
+          <h1 className="mt-8 max-w-4xl font-display text-5xl font-bold leading-[1.1] tracking-tight sm:text-6xl lg:text-7xl">
+            Your AI companion at every
+            <br />
+            <span className="text-gradient">gate, seat, and section.</span>
+          </h1>
+
+          <p className="mt-8 max-w-2xl text-lg leading-relaxed text-surface-300 sm:text-xl">
+            Concourse is a unified GenAI agent that actually knows the building. Ask in any language, get a step-free route, avoid the crowds, and receive live tactical nudges.
+          </p>
+
+          <div className="mt-12 flex w-full max-w-md flex-col gap-4 sm:flex-row sm:items-center sm:justify-center">
+            <Link
+              to="/concierge"
+              className="glow-primary group flex w-full items-center justify-center gap-2 rounded-pill bg-primary px-8 py-4 font-semibold text-surface-950 transition-all hover:scale-105 hover:bg-primary-400 sm:w-auto"
+            >
+              Talk to Concourse
+              <span className="transition-transform group-hover:translate-x-1">→</span>
+            </Link>
+            <Link
+              to="/navigate"
+              className="flex w-full items-center justify-center gap-2 rounded-pill border border-surface-700 bg-surface-900/50 px-8 py-4 font-semibold text-surface-100 backdrop-blur-md transition-all hover:bg-surface-800 sm:w-auto"
+            >
+              View Tactical Map
+            </Link>
+          </div>
+        </section>
+
+        {/* Features Grid */}
+        <section className="mt-32 pb-24">
+          <div className="mb-12 text-center">
+            <h2 className="font-display text-3xl font-semibold text-surface-50">One agent. Five capabilities.</h2>
+            <p className="mt-3 text-surface-400">Powered by Qwen and a real 3,400+ node stadium graph.</p>
+          </div>
+
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {FEATURES.map((f) => (
+              <article
+                key={f.title}
+                className="glass-panel group relative overflow-hidden rounded-3xl p-6 transition-all hover:-translate-y-1 hover:border-surface-600"
+              >
+                <div className="mb-4 text-3xl">{f.icon}</div>
+                <h3 className="font-display text-lg font-semibold text-surface-50">{f.title}</h3>
+                <p className="mt-2 text-sm leading-relaxed text-surface-300">{f.body}</p>
+                <div className="absolute -right-10 -top-10 h-32 w-32 rounded-full bg-surface-800/30 blur-2xl transition-colors group-hover:bg-primary-900/30" />
+              </article>
+            ))}
+          </div>
+        </section>
+
+        {/* Footer */}
+        <footer className="border-t border-surface-800/50 pb-12 pt-8 text-center text-sm text-surface-500">
+          <p>Built for PromptWars Virtual Challenge 4.</p>
+          <p className="mt-2">
+            <strong>Judge Instructions:</strong> Open <Link to="/navigate" className="text-primary hover:underline">/navigate</Link> and <Link to="/admin" className="text-accent hover:underline">/admin</Link> side-by-side to test live incident injection.
+          </p>
+        </footer>
+      </main>
+    </div>
   );
 }

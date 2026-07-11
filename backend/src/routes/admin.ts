@@ -93,6 +93,36 @@ adminRouter.post('/admin/incident', (req, res) => {
   res.json(incident);
 });
 
+/**
+ * POST /api/admin/demo/enable
+ * Enables ?demo=1 deterministic mode. Locks the simulation clock to minute 40
+ * (just before the halftime surge) so the heatmap is busy and incidents are impactful.
+ */
+adminRouter.post('/admin/demo/enable', (req, res) => {
+  const sim = getCrowdSimulator();
+  // Pin the clock to minute 40 and stop time passing
+  sim.setSpeed(0);
+  sim.setSimMinute(40);
+
+  // Clear any old overrides/briefings
+  for (const zone of sim.getZones()) {
+    sim.clearOverride(zone.id);
+  }
+  cachedBriefing = null;
+
+  res.json({ ok: true, message: 'Demo mode enabled. Simulation clock pinned to minute 40.' });
+});
+
+/**
+ * POST /api/admin/demo/disable
+ * Returns the simulator to normal time progression.
+ */
+adminRouter.post('/admin/demo/disable', (req, res) => {
+  const sim = getCrowdSimulator();
+  sim.setSpeed(1);
+  res.json({ ok: true, message: 'Demo mode disabled. Time is running normally.' });
+});
+
 // Cache for the AI briefing so we don't spam the LLM API on reload
 let cachedBriefing: Briefing | null = null;
 

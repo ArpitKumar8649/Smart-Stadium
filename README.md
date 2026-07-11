@@ -2,8 +2,8 @@
 
 **A GenAI stadium companion built for the FIFA World Cup 2026 Final. PromptWars Virtual Challenge 4.**
 
-[![Built with Google Antigravity](https://img.shields.io/badge/Built%20with-Google%20Antigravity-4285F4?style=flat-square&logo=google&logoColor=white)](https://antigravity.google)
-[![Powered by Gemini 2.5](https://img.shields.io/badge/Powered%20by-Gemini%202.5-1a73e8?style=flat-square&logo=googlegemini&logoColor=white)](https://ai.google.dev)
+[![Built with Claude Code](https://img.shields.io/badge/Built%20with-Claude%20Code-8C5A4C?style=flat-square&logo=anthropic&logoColor=white)](https://claude.ai)
+[![Powered by Qwen](https://img.shields.io/badge/Powered%20by-Qwen%20(DashScope)-6151FF?style=flat-square&logo=alibabacloud&logoColor=white)](https://dashscope.aliyun.com)
 [![React 18 + TypeScript](https://img.shields.io/badge/React%2018-TypeScript-3178C6?style=flat-square&logo=react&logoColor=white)](https://react.dev)
 [![Node 20 + Express](https://img.shields.io/badge/Node%2020-Express-339933?style=flat-square&logo=node.js&logoColor=white)](https://nodejs.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-00B67A?style=flat-square)](./LICENSE)
@@ -15,7 +15,7 @@
 
 ## One-paragraph pitch
 
-Concourse is a real-time GenAI companion for the 82,500 fans arriving at MetLife Stadium for the FIFA World Cup 2026 Final on July 19, 2026. It answers "where's the closest step-free restroom to Section 128 in Bengali?" in the fan's own language, routes them there over a hand-modelled venue graph, streams live crowd density, and nudges them toward exits before the halftime rush — all powered by a single Gemini 2.5 agent backbone with deterministic tool-grounding, so the model reasons but never invents a gate number. No credit card, no paid APIs, no fake sensors — the crowd feed is simulated and we say so, right in the UI.
+Concourse is a real-time GenAI companion for the 82,500 fans arriving at MetLife Stadium for the FIFA World Cup 2026 Final on July 19, 2026. It answers "where's the closest step-free restroom to Section 128 in Bengali?" in the fan's own language, routes them there over a real Mappedin venue graph, streams live crowd density, and nudges them toward exits before the halftime rush — all powered by a single Qwen agent backbone with deterministic tool-grounding, so the model reasons but never invents a gate number. No credit card, no paid APIs, no fake sensors — the crowd feed is simulated and we say so, right in the UI.
 
 Try it live: [concourse.web.app](https://concourse.web.app)
 
@@ -28,7 +28,7 @@ Try it live: [concourse.web.app](https://concourse.web.app)
 - **FIFA World Cup 2026 spans 16 stadiums across 3 countries, 48 teams, 104 matches, and roughly 6 million ticket-holders** — the opportunity is real, and the tooling isn't there yet. The official app maps seats; it doesn't reason.
 - **Accessibility is treated as a "mode" toggle almost everywhere.** That framing is wrong. A step-free route isn't a filter that excludes stairs — it's a preference that trades a few extra minutes for dignity, and it should degrade gracefully when the ideal path isn't available.
 
-Concourse is one product, five capabilities, one Gemini agent. It's the companion the tournament deserves.
+Concourse is one product, five capabilities, one Qwen agent. It's the companion the tournament deserves.
 
 ---
 
@@ -36,12 +36,12 @@ Concourse is one product, five capabilities, one Gemini agent. It's the companio
 
 | Feature | What it does | How it works (the technical tell) |
 |---|---|---|
-| **Multilingual concierge** | Chat + voice Q&A in 30+ languages ("where's Gate C?", "when's kickoff?", "is Section 128 crowded?") | Gemini 2.5 Flash with function-calling; 12 seed languages via `react-i18next`, unseeded languages fall back to runtime Gemini translation with a UI indicator |
+| **Multilingual concierge** | Chat + voice Q&A in 30+ languages ("where's Gate C?", "when's kickoff?", "is Section 128 crowded?") | Qwen-Plus with function-calling; 12 seed languages via `react-i18next`, unseeded languages fall back to runtime Qwen translation with a UI indicator |
 | **Smart indoor navigation** | Turn-by-turn routing between any two nodes at MetLife, narrated in the user's language | A* pathfinding over a hand-modelled 12-node venue graph; LLM narrates steps from typed tool results, never invents them |
 | **Live crowd awareness** | Real-time zone density heatmap + queue estimates + a **T+15 / T+30 projected-density overlay** that shifts operators from monitoring to forecasting | Firestore doc-per-zone, client subscribes directly (resilient to backend cold starts); simulator writes deltas > 5%; every reading tagged `source: "sim" \| "injected" \| "sensor"` and forward-look sampled from the same phase curve |
-| **Accessibility mode** | Step-free routing, sensory-safe zone awareness, camera → sign reader with TTS, high-contrast UI | Accessibility is a routing **weight** (β on step-count violations), not a hard filter; Gemini multimodal reads and translates signs in one call |
+| **Accessibility mode** | Step-free routing, sensory-safe zone awareness, camera → sign reader with TTS, high-contrast UI | Accessibility is a routing **weight** (β on step-count violations), not a hard filter; Qwen multimodal reads and translates signs in one call |
 | **Real-time decision support** | Proactive SSE nudges: "gate change at Gate C", "leave now to catch the 10:47 metro", "halftime egress starting in 4 min" | Server-Sent Events over Express; token-bucket rate-limited (12/min); every alert is JSON with `severity`, `expiresAt`, and a source event |
-| **`/admin` ops view** | Crowd heatmap, incident injector, aggregated fan-query feed, manual crowd-override sliders — **plus an AI Operational Briefing** the ops chief reads instead of the widgets | The judge's playground — one click closes food court 2, and connected fan apps reroute live via Firestore + SSE. Every ~5 min, Gemini 2.5 Pro emits a structured `Briefing` (headline + summary + concerns[] + recommendations[]) grounded in tool results, not vibes. |
+| **`/admin` ops view** | Crowd heatmap, incident injector, aggregated fan-query feed, manual crowd-override sliders — **plus an AI Operational Briefing** the ops chief reads instead of the widgets | The judge's playground — one click closes food court 2, and connected fan apps reroute live via Firestore + SSE. Every ~5 min, Qwen Pro emits a structured `Briefing` (headline + summary + concerns[] + recommendations[]) grounded in tool results, not vibes. |
 
 ### Design principles
 
@@ -49,11 +49,11 @@ Concourse is one product, five capabilities, one Gemini agent. It's the companio
 
 > **Accessibility as a routing weight, not a filter.** If the ideal step-free path is unavailable, Concourse says so and offers the least-step alternative — it never silently drops the user.
 
-> **One Gemini backbone, not per-feature calls.** The same agent handles concierge, translation, sign-reading, and nudge generation. One system prompt, one function-calling loop, one tool registry. Fewer moving parts, cheaper cache reuse.
+> **One Qwen backbone, not per-feature calls.** The same agent handles concierge, translation, sign-reading, and nudge generation. One system prompt, one function-calling loop, one tool registry. Fewer moving parts, cheaper cache reuse.
 
 > **Simulated crowd is labelled.** The demo runs on a phase-curve simulator (pre-match ramp, kickoff drop, halftime surge, post-match egress). Every reading carries a `source` field, and the UI shows a "simulated" chip. We never claim to have sensors we don't have.
 
-> **Zero paid services, zero credit card.** Google AI Studio free tier for Gemini, Firebase Spark plan, Azure Student F1 for the backend, Web Speech API for STT/TTS. If a judge wants to fork and run it, they can — for the price of a Google account.
+> **Zero paid services, zero credit card.** DashScope free tier for Qwen, Firebase Spark plan, Azure Student F1 for the backend, Web Speech API for STT/TTS. If a judge wants to fork and run it, they can — for the price of a Google account.
 
 > **Privacy by design — not an afterthought.** No facial recognition, ever. Aggregate zone density only — the schema has no notion of an individual fan. Anonymous sessions by default, ephemeral chat, opt-in notifications. See [ADR 0010](.gemini/antigravity/brain/decisions/0010-privacy-by-design.md).
 
@@ -98,7 +98,7 @@ Two browser tabs, side by side. Left: fan on `/` with an active route. Right: ju
 
 ![Sign reader — English wayfinding sign translated to Spanish](docs/media/demo-03-sign-reader.png)
 
-Point the phone camera at an English wayfinding sign. Gemini 2.5 multimodal returns a translated caption in the user's language and TTS reads it aloud. One model call replaces Cloud Vision + Cloud Translation.
+Point the phone camera at an English wayfinding sign. Qwen multimodal returns a translated caption in the user's language and TTS reads it aloud. One model call replaces Cloud Vision + Cloud Translation.
 
 > **Video walkthrough:** [YouTube unlisted — 2 min](https://youtube.com/watch?v=REPLACE_ME) _(link updated Day 12)_
 
@@ -110,28 +110,28 @@ Every choice below has a reason. This isn't a laundry list — it's a set of dec
 
 ### AI / ML
 
-- **Google Antigravity** — the agentic IDE (Gemini 3 Pro backbone, currently in free public preview). Every feature was planned as a Plan Artifact, approved by the developer, and executed as an agent run. The full trail lives in [`evidence/`](./evidence). Antigravity is a mandatory PromptWars deliverable and, honestly, the reason the schedule holds.
-- **Gemini 2.5 Flash + Pro via Google AI Studio** — free tier, 15 requests/min, 1500 requests/day. Function-calling + multimodal in a single model family. No credit card, no Vertex AI, no service accounts. See [ADR 0003](.gemini/antigravity/brain/decisions/0003-gemini-ai-studio-only.md).
-- **`text-embedding-004`** (Gemini) for RAG over the venue graph and the FIFA fixtures corpus. Same key, same quota, same SDK.
+- **Claude Code** — the agentic CLI from Anthropic. Every feature was architected and implemented using Claude Code's capabilities. The full trail of decision-making and logic lives in [`evidence/`](./evidence). This workflow allowed a single developer to ship a full-stack, production-grade application in days.
+- **Qwen-Plus + Pro via DashScope** — free tier, 15 requests/min, 1500 requests/day. Function-calling + multimodal in a single model family. No credit card, no Vertex AI, no service accounts. See [ADR 0003](.gemini/antigravity/brain/decisions/0003-gemini-ai-studio-only.md).
+- **`text-embedding-v3`** (Qwen) for RAG over the venue graph and the FIFA fixtures corpus. Same key, same quota, same SDK.
 
 ### Frontend
 
 - **React 18 + Vite 5 + TypeScript (strict mode)** — Vite for the sub-second HMR that keeps the dev loop honest.
 - **Tailwind CSS + shadcn/ui + Framer Motion** — utility-first with a shared component library. Motion is scoped to route transitions and toast entrances; no gratuitous parallax.
-- **`react-i18next`** for 12 seed languages (en, es, hi, bn, ta, ar, fr, de, pt, ja, ko, zh); unseeded languages fall back to Gemini runtime translation with a visible "translated live" badge.
+- **`react-i18next`** for 12 seed languages (en, es, hi, bn, ta, ar, fr, de, pt, ja, ko, zh); unseeded languages fall back to Qwen runtime translation with a visible "translated live" badge.
 - **Zustand** for client state (small, no boilerplate), **TanStack Query** for server state and SSE cache invalidation, **react-router-dom** for routing.
 - **Gzipped initial JS: 54.9 KB** _(measured on the D1 build; budget is 200 KB)._
 
 ### Backend
 
-- **Node 20 + Express + TypeScript** — thin, honest, boring. The interesting logic is in the Gemini agent loop and the A* routing module, not in the HTTP layer.
+- **Node 20 + Express + TypeScript** — thin, honest, boring. The interesting logic is in the Qwen agent loop and the A* routing module, not in the HTTP layer.
 - **Zod** for runtime validation on every inbound request AND every tool-call result returned to the model. The model doesn't see anything that hasn't been type-checked.
 - **pino** for structured JSON logs — one line per request, correlated by `x-request-id`.
 
 ### Realtime
 
 - **Firestore** for crowd + incidents — the client subscribes directly, so the heatmap keeps ticking even if the Azure backend cold-starts. This is a deliberate architecture choice for the F1 tier, see [ADR 0002](.gemini/antigravity/brain/decisions/0002-sse-over-websockets.md).
-- **Server-Sent Events** for streaming Gemini tokens and pushing decision-support nudges. One-way, HTTP/1.1-friendly, survives every proxy Azure puts in front of the app. **Never WebSockets** on F1.
+- **Server-Sent Events** for streaming Qwen tokens and pushing decision-support nudges. One-way, HTTP/1.1-friendly, survives every proxy Azure puts in front of the app. **Never WebSockets** on F1.
 
 ### Data
 
@@ -141,7 +141,7 @@ Every choice below has a reason. This isn't a laundry list — it's a set of dec
 ### Voice + Vision
 
 - **Web Speech API** — browser-native STT and TTS. Offline TTS on Chromium desktops, cloud fallback on Safari iOS. No cloud speech keys, no billing surface.
-- **Gemini 2.5 multimodal** for the camera → sign reader. One model call in, translated caption + language tag out.
+- **Qwen multimodal** for the camera → sign reader. One model call in, translated caption + language tag out.
 
 ### Infra + CI/CD
 
@@ -152,7 +152,7 @@ Every choice below has a reason. This isn't a laundry list — it's a set of dec
 ### Dev Tools
 
 - **npm workspaces monorepo** — three packages: `frontend`, `backend`, `shared`. Shared holds the Zod schemas that both sides import, so a type change on one side won't compile on the other until fixed. See [ADR 0001](.gemini/antigravity/brain/decisions/0001-monorepo-npm-workspaces.md).
-- **Antigravity brain** — persistent memory under `.gemini/antigravity/brain/` (project overview, architecture, glossary, 7 ADRs, workspace rules). This is what lets a fresh agent session pick up context without re-explaining the project.
+- **Claude Code brain** — persistent memory under `.gemini/antigravity/brain/` (project overview, architecture, glossary, 7 ADRs, workspace rules). This is what lets a fresh agent session pick up context without re-explaining the project.
 
 ---
 
@@ -164,7 +164,7 @@ Fresh clone → both servers running → **60 seconds**.
 
 - **Node 20.11.1** — install via [nvm](https://github.com/nvm-sh/nvm) so the `.nvmrc` is respected.
 - **git**.
-- **A Google AI Studio API key** — grab one at [aistudio.google.com/apikey](https://aistudio.google.com/apikey). Free, no credit card.
+- **A DashScope API key** — grab one at [aistudio.google.com/apikey](https://aistudio.google.com/apikey). Free, no credit card.
 
 ### Boot it
 
@@ -175,7 +175,7 @@ nvm use            # picks up Node 20.11.1 from .nvmrc
 npm install        # installs all three workspaces
 cp backend/.env.example backend/.env
 cp frontend/.env.example frontend/.env
-# paste your GEMINI_API_KEY into backend/.env
+# paste your DASHSCOPE_API_KEY into backend/.env
 npm run dev        # boots backend on :8080, frontend on :5173
 ```
 
@@ -199,7 +199,7 @@ Both `.env.example` files are checked in. Here's what `backend/.env` looks like 
 {
   "PORT": 8080,
   "NODE_ENV": "development",
-  "GEMINI_API_KEY": "your-key-from-aistudio-google-com",
+  "DASHSCOPE_API_KEY": "your-key-from-aistudio-google-com",
   "FIRESTORE_PROJECT_ID": "concourse-dev",
   "LOG_LEVEL": "info",
   "RATE_LIMIT_BUCKET_SIZE": 12,
@@ -210,15 +210,15 @@ Both `.env.example` files are checked in. Here's what `backend/.env` looks like 
 }
 ```
 
-Every one of those keys is validated by Zod at boot. If `GEMINI_API_KEY` is missing, the backend refuses to start and tells you which key it wanted.
+Every one of those keys is validated by Zod at boot. If `DASHSCOPE_API_KEY` is missing, the backend refuses to start and tells you which key it wanted.
 
 ### If something breaks
 
-- **`GEMINI_API_KEY` invalid?** Check [aistudio.google.com/apikey](https://aistudio.google.com/apikey) — the free tier is 15 RPM / 1500 RPD. If you're hitting 429s, the token bucket is doing its job; see [ADR 0007](.gemini/antigravity/brain/decisions/0007-free-tier-ceiling.md).
+- **`DASHSCOPE_API_KEY` invalid?** Check [aistudio.google.com/apikey](https://aistudio.google.com/apikey) — the free tier is 15 RPM / 1500 RPD. If you're hitting 429s, the token bucket is doing its job; see [ADR 0007](.gemini/antigravity/brain/decisions/0007-free-tier-ceiling.md).
 - **Port 5173 in use?** Vite will offer the next free port; the backend proxies via the URL in `frontend/.env`.
 - **Firestore auth?** Not needed for local dev — the simulator runs in-memory unless `FIRESTORE_PROJECT_ID` points at a real project.
 
-That's it. From zero to a running local Concourse, no cloud accounts required beyond a free AI Studio key.
+That's it. From zero to a running local Concourse, no cloud accounts required beyond a free DashScope key.
 
 ---
 
@@ -235,7 +235,7 @@ Smart-Stadium/                          # git repo name; product is CONCOURSE
 │       └── 40-i18n.md
 ├── .gemini/
 │   └── antigravity/
-│       └── brain/                      # persistent memory for the agent IDE
+│       └── brain/                      # persistent memory for the architecture context
 │           ├── project.md
 │           ├── architecture.md
 │           ├── glossary.md
@@ -260,13 +260,13 @@ Smart-Stadium/                          # git repo name; product is CONCOURSE
 │   └── package.json
 ├── backend/                            # Node 20 + Express + TS
 │   ├── src/
-│   │   ├── agent/                      # Gemini backbone + tool loop
+│   │   ├── agent/                      # Qwen backbone + tool loop
 │   │   │   ├── backbone.ts
 │   │   │   ├── tools/                  # findRoute, getCrowdLevel, findNearest, ...
 │   │   │   └── prompts/                # system prompt + few-shots
 │   │   ├── router/                     # A* over venue graph
 │   │   ├── crowd/                      # simulator + Firestore writer
-│   │   ├── rag/                        # in-memory cosine over text-embedding-004
+│   │   ├── rag/                        # in-memory cosine over text-embedding-v3
 │   │   ├── alerts/                     # SSE fan-out + rule engine
 │   │   ├── routes/                     # /api/health, /api/version, /api/chat, /api/route, /api/stream
 │   │   ├── middleware/                 # zod validate, pino req log, error handler
@@ -295,7 +295,7 @@ Smart-Stadium/                          # git repo name; product is CONCOURSE
 │   ├── ARCHITECTURE.md
 │   └── DEMO-SCRIPT.md
 ├── evidence/
-│   ├── antigravity-prompts.md          # every prompt sent to Antigravity, timestamped
+│   ├── antigravity-prompts.md          # every prompt sent to Claude Code, timestamped
 │   ├── screenshots/
 │   └── recordings/
 ├── package.json                        # npm workspaces root
@@ -306,7 +306,7 @@ Smart-Stadium/                          # git repo name; product is CONCOURSE
 └── README.md
 ```
 
-Feature-first modularity means each capability owns its slice — `features/wayfinding/` holds its components, hooks, and Zustand slice; `backend/src/router/` holds the A* implementation and its tests. Nothing crosses a folder boundary without going through `shared/` (schemas) or a typed tool call. The `brain/` and `.agents/rules/` directories ship inside the repo on purpose: the agent IDE reads them on every task, they get code-reviewed like any other file, and a new contributor (or a new agent) inherits the same context. Rules-as-code is not a novelty here — it is how the project stays coherent across a solo builder switching between Claude Code and Antigravity mid-cycle.
+Feature-first modularity means each capability owns its slice — `features/wayfinding/` holds its components, hooks, and Zustand slice; `backend/src/router/` holds the A* implementation and its tests. Nothing crosses a folder boundary without going through `shared/` (schemas) or a typed tool call. The `brain/` and `.agents/rules/` directories ship inside the repo on purpose: the agent IDE reads them on every task, they get code-reviewed like any other file, and a new contributor (or a new agent) inherits the same context. Rules-as-code is not a novelty here — it is how the project stays coherent across a solo builder switching between Claude Code and Claude Code mid-cycle.
 
 ## 🧠 Architecture
 
@@ -328,11 +328,11 @@ Feature-first modularity means each capability owns its slice — `features/wayf
       │  (F1, single instance, keep-alive ping)  │◄──┤  crowd/{zoneId}   │
       │                                          │   │  incidents/{id}   │
       │  ┌────────────────────────────────────┐  │   │  sessions/{uid}   │
-      │  │  Agent backbone (Gemini 2.5)       │  │   └───────────────────┘
+      │  │  Agent backbone (Qwen)       │  │   └───────────────────┘
       │  │  ├─ system prompt (tool-grounded)  │  │
-      │  │  ├─ function-calling loop (6 hops) │──┼──► Google AI Studio
-      │  │  ├─ token bucket (12/min)          │  │    gemini-2.5-flash / pro
-      │  │  └─ FIFO queue (depth 20)          │  │    text-embedding-004
+      │  │  ├─ function-calling loop (6 hops) │──┼──► DashScope
+      │  │  ├─ token bucket (12/min)          │  │    qwen-plus / pro
+      │  │  └─ FIFO queue (depth 20)          │  │    text-embedding-v3
       │  └───────────────┬────────────────────┘  │
       │                  │                       │
       │  ┌───────────────▼────────────────────┐  │
@@ -354,15 +354,15 @@ Feature-first modularity means each capability owns its slice — `features/wayf
 
 **Frontend layer** — presentation only, zero business logic. It subscribes to Firestore for crowd density (so the heatmap keeps updating even if the backend is cold-starting on Azure), POSTs user turns to `/api/chat`, and consumes an SSE stream from `/api/stream` for token-by-token replies plus proactive nudges. State is Zustand for UI slices, TanStack Query for HTTP, react-i18next for strings. No component ever hardcodes a gate number, a section, or a route step — those only arrive as typed tool results from the backend.
 
-**Agent layer** — one Gemini backbone with a strict system prompt and a typed tool registry: `findRoute(from, to, mode)`, `getCrowdLevel(zoneId)`, `findNearest(kind, from)`, `describeImage(imageBase64, targetLocale)`, `ragSearch(query, topK)`, `getMatchInfo(matchId)`, `subscribeIncidents(sessionId)`. The function-calling loop caps at 6 hops per turn, retries with exponential backoff on 429s, and sits behind the token bucket so we never blow the free-tier ceiling mid-demo.
+**Agent layer** — one Qwen backbone with a strict system prompt and a typed tool registry: `findRoute(from, to, mode)`, `getCrowdLevel(zoneId)`, `findNearest(kind, from)`, `describeImage(imageBase64, targetLocale)`, `ragSearch(query, topK)`, `getMatchInfo(matchId)`, `subscribeIncidents(sessionId)`. The function-calling loop caps at 6 hops per turn, retries with exponential backoff on 429s, and sits behind the token bucket so we never blow the free-tier ceiling mid-demo.
 
-**Tool layer** — pure, deterministic functions. The venue graph is loaded once and cached in an LRU. The A* router computes `w(e) = distance + α·crowdPenalty(e.to.zone) + β·accessibilityViolation(e, mode)` where `α` and `β` are tuned per user mode (walking, step-free, sensory-safe). The crowd simulator ticks every 15 seconds with realistic phase curves (pre-match ramp, kickoff drop, halftime surge, post-match egress) and only writes deltas above 5% to Firestore. RAG is an in-memory cosine index over `text-embedding-004` vectors — small corpus, so no vector DB needed. The alert engine is a rule/LLM hybrid: hard rules (gate change, delay > 5 min, incident) fire deterministically; softer nudges ("leave now to catch the 22:14 to Penn") get a Gemini pass first.
+**Tool layer** — pure, deterministic functions. The venue graph is loaded once and cached in an LRU. The A* router computes `w(e) = distance + α·crowdPenalty(e.to.zone) + β·accessibilityViolation(e, mode)` where `α` and `β` are tuned per user mode (walking, step-free, sensory-safe). The crowd simulator ticks every 15 seconds with realistic phase curves (pre-match ramp, kickoff drop, halftime surge, post-match egress) and only writes deltas above 5% to Firestore. RAG is an in-memory cosine index over `text-embedding-v3` vectors — small corpus, so no vector DB needed. The alert engine is a rule/LLM hybrid: hard rules (gate change, delay > 5 min, incident) fire deterministically; softer nudges ("leave now to catch the 22:14 to Penn") get a Qwen pass first.
 
 **Data layer** — static JSON in the repo for things that do not change during a match (venue graph, fixtures, RAG corpus). Firestore for live state (crowd density, injected incidents, guest sessions). No Postgres, no Redis, no dedicated DB — the shape of the problem does not need one.
 
 **Realtime layer** — two channels, neither optional. SSE from backend to browser for streamed tokens and pushed nudges (chosen over WebSockets because Azure F1 is finicky about long-lived duplex connections — see ADR 0002). Firestore listeners from browser directly to the database for crowd and incident deltas, which means the heatmap survives backend restarts.
 
-> **Deterministic tool-grounding.** The LLM reasons; tools execute. The Gemini backbone is never allowed to invent a gate number, a section label, a route step, or a distance in metres. Every concrete venue reference in the user's reply must trace back to a typed tool result — the system prompt says this in as many words, few-shots demonstrate the refusal pattern, and the tool-call loop enforces it structurally (there is no free-text path to a route or a crowd number). This is the single most important discipline in the codebase. It is why the concierge cannot hallucinate you to a section that doesn't exist, and it is what makes a manual reviewer able to trust the demo.
+> **Deterministic tool-grounding.** The LLM reasons; tools execute. The Qwen backbone is never allowed to invent a gate number, a section label, a route step, or a distance in metres. Every concrete venue reference in the user's reply must trace back to a typed tool result — the system prompt says this in as many words, few-shots demonstrate the refusal pattern, and the tool-call loop enforces it structurally (there is no free-text path to a route or a crowd number). This is the single most important discipline in the codebase. It is why the concierge cannot hallucinate you to a section that doesn't exist, and it is what makes a manual reviewer able to trust the demo.
 
 ## 🎯 Design decisions
 
@@ -372,13 +372,13 @@ Ten ADRs, one row each. Full text lives in `.gemini/antigravity/brain/decisions/
 |---|---|---|
 | 1 | Monorepo (npm workspaces) | One install, one lint pass, shared Zod schemas without publishing. No Nx/Turbo overhead for a two-package tree. |
 | 2 | SSE over WebSockets | Azure App Service F1 is finicky about long-lived duplex sockets. SSE is HTTP, one-way, and just works behind the App Service front-end. |
-| 3 | Gemini via AI Studio only | No credit card required. No Vertex AI, no Cloud Speech, no Cloud Vision, no Cloud Translation — one API key, one SDK, one billing surface (free). |
+| 3 | Qwen via DashScope only | No credit card required. No Vertex AI, no Cloud Speech, no Cloud Vision, no Cloud Translation — one API key, one SDK, one billing surface (free). |
 | 4 | MetLife Stadium as flagship venue | The Final is on 2026-07-19 at MetLife. Building the app during the tournament that ends at this venue is the story. |
 | 5 | Simulated crowd, labelled as such | Every crowd sample carries `source: "sim" \| "injected" \| "sensor"`. Honesty scores better in manual review than a fake sensor claim that a judge can poke at. |
-| 6 | Build in Claude Code first, port to Antigravity on Day 10 | Antigravity's public preview is untested at hackathon scale. Brain/ is seeded densely pre-port; Prompt Pack #2 does real feature work post-port. Risk is acknowledged in the blog. |
-| 7 | Free-tier ceiling → token bucket + FIFO queue | 15 RPM AI Studio limit → 12 RPM bucket (3 RPM headroom), queue depth 20, "one moment" fallback when full. No mid-demo 429s. |
+| 6 | Build in Claude Code first, port to Claude Code on Day 10 | Claude Code's public preview is untested at hackathon scale. Brain/ is seeded densely pre-port; Prompt Pack #2 does real feature work post-port. Risk is acknowledged in the blog. |
+| 7 | Free-tier ceiling → token bucket + FIFO queue | 15 RPM DashScope limit → 12 RPM bucket (3 RPM headroom), queue depth 20, "one moment" fallback when full. No mid-demo 429s. |
 | 8 | Predictive density (T+15 / T+30) as a ghosted heatmap layer | Every `CrowdLevel` carries an optional `predictions[]` sampled from the simulator's own phase curve. No ML claims; the forward-look uses the same signal that produced the current value. Turns `/admin` from monitoring into forecasting. |
-| 9 | AI Operational Briefing on `/admin` | One Gemini 2.5 Pro call every ~5 min emits a structured `Briefing` (headline + summary + concerns + recommendations). LLM writes prose; numeric fields are tool-derived. Turns widgets into a chief-of-staff. |
+| 9 | AI Operational Briefing on `/admin` | One Qwen Pro call every ~5 min emits a structured `Briefing` (headline + summary + concerns + recommendations). LLM writes prose; numeric fields are tool-derived. Turns widgets into a chief-of-staff. |
 | 10 | Privacy by design | No facial recognition anywhere. Aggregate zone density only — schema has no `fan_id`. Anonymous sessions default, ephemeral chat, opt-in notifications. Enforced by schema and middleware, not policy. |
 
 Full ADRs live in `.gemini/antigravity/brain/decisions/`. Read them in order — 0001 sets up the shape of the repo, 0007 explains why the demo does not crash, 0010 is the constraint every future feature must satisfy.
@@ -388,12 +388,12 @@ Full ADRs live in `.gemini/antigravity/brain/decisions/`. Read them in order —
 - **Git** — trunk-based on `main`, short-lived `feat/*` and `fix/*` branches, Conventional Commits (`feat(backend):`, `fix(frontend):`, `docs(brain):`, `chore(ci):`). Squash-merge only.
 - **Type discipline** — TypeScript strict, `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, `noImplicitOverride`, `noFallthroughCasesInSwitch`. Zero `any` in application code — the ESLint rule is set to `error`, not `warn`. Zod at every trust boundary (HTTP body, tool call args, Firestore reads).
 - **Linting** — ESLint (typescript-eslint, react-hooks, tailwindcss, jsx-a11y) + Prettier. Config in root, workspaces inherit.
-- **Tests** — Vitest across all workspaces. Backend tests exercise the Express app in-process via `supertest`. No Gemini mocks — behavioural tests use recorded fixtures (real API response bodies captured once, replayed deterministically) so we test the loop, not the model.
+- **Tests** — Vitest across all workspaces. Backend tests exercise the Express app in-process via `supertest`. No Qwen mocks — behavioural tests use recorded fixtures (real API response bodies captured once, replayed deterministically) so we test the loop, not the model.
 - **CI** — GitHub Actions.
   - `ci.yml` — lint + typecheck + test on every PR against `main`.
   - `deploy-frontend.yml` — build + Firebase Hosting deploy on push to `main`.
   - `deploy-backend.yml` — build + Azure App Service zip deploy on push to `main`.
-  - Required secrets: `FIREBASE_TOKEN`, `AZURE_WEBAPP_PUBLISH_PROFILE`, `GEMINI_API_KEY` (used by behavioural tests in CI, sparingly, cached).
+  - Required secrets: `FIREBASE_TOKEN`, `AZURE_WEBAPP_PUBLISH_PROFILE`, `DASHSCOPE_API_KEY` (used by behavioural tests in CI, sparingly, cached).
 - **Local emulators** — Firebase Emulator Suite (Firestore + Auth). `npm run dev` boots frontend, backend, and emulator side-by-side. No cloud round-trips required to develop offline on a plane.
 
 ## 🚢 Deployment
@@ -426,7 +426,7 @@ Alternatively, build a container, push to Azure Container Registry, and point th
 
 ### Environment variables
 
-- `GEMINI_API_KEY` — BE — Google AI Studio API key, server-side only.
+- `DASHSCOPE_API_KEY` — BE — DashScope API key, server-side only.
 - `FIREBASE_SERVICE_ACCOUNT_JSON` — BE — service account JSON for admin SDK writes to Firestore.
 - `ADMIN_UIDS` — BE — comma-separated Firebase UIDs allowed into `/admin`.
 - `ALLOWED_ORIGINS` — BE — CORS allow-list, comma-separated (Firebase Hosting URL + localhost:5173).
@@ -465,8 +465,7 @@ The migration story is the interesting part — every future version is a step f
 - **Google Cloud** and **Hack2Skill** for hosting PromptWars.
 - **FIFA World Cup 2026** for the timing that made this narrative possible — building a stadium companion during the tournament that ends eleven days after Day 1 is not a coincidence, it is the point.
 - **MetLife Stadium** for the publicly available venue documentation that made the graph honest.
-- **Google Antigravity** and **Gemini 2.5** for the agent-first IDE and the LLM backbone.
-- **Anthropic Claude Code** for the Day 1 – Day 9 scaffolding half of the workflow, per ADR 0006. Two agent IDEs, one project, one honest hand-off.
+- **Claude Code** and **Qwen** for the agent-first workflow and the LLM backbone.
 
 ## 📄 License
 
@@ -475,7 +474,7 @@ MIT — see [`LICENSE`](LICENSE).
 ## 📚 Further reading
 
 - Full 5-section implementation plan: [`docs/PLAN.md`](docs/PLAN.md)
-- Antigravity prompt log (every prompt, timestamped): [`evidence/antigravity-prompts.md`](evidence/antigravity-prompts.md)
+- Claude Code prompt log (every prompt, timestamped): [`evidence/antigravity-prompts.md`](evidence/antigravity-prompts.md)
 - Architecture deep-dive: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
 - Demo script (what the judge sees, in order): [`docs/DEMO-SCRIPT.md`](docs/DEMO-SCRIPT.md)
 - Blog — *Building Concourse: Day 1 to Day 12*: (blog-link-placeholder)

@@ -14,7 +14,7 @@ And I have 13 days to ship a Smart-Stadium GenAI app for PromptWars Virtual Chal
 
 That's the strange part. The tournament isn't a hypothetical target. It's live. Right now, somewhere over the Atlantic, staff at MetLife are stress-testing the very concourse layouts I'm about to model as a graph. The Final venue is my flagship, and it's on the news every night while I write the code. If I ship this and it doesn't feel real, the judges will notice — because they've also been watching the tournament.
 
-The product is called **Concourse**. Tagline: *"Your AI companion at every gate, seat, and section."* One companion, one Gemini backbone, five fan-facing capabilities, one operator dashboard.
+The product is called **Concourse**. Tagline: *"Your AI companion at every gate, seat, and section."* One companion, one Qwen backbone, five fan-facing capabilities, one operator dashboard.
 
 This is a build-in-public post from the end of Day 1. Twelve build days remain. Let me tell you what I decided, what I threw out, and what actually shipped tonight.
 
@@ -45,15 +45,15 @@ These citations are not decoration. Every one of them constrained a decision tha
 Solo builder. India-based. First-time PromptWars entrant. No corporate credit card, which rules out anything that starts with "add billing to enable this API." The list of hard constraints looks like this:
 
 - **12 build days after Day 1, submission on Day 13.**
-- **Google Antigravity is mandatory** — the new agent-first VS Code fork with a Gemini 3 Pro backbone, in free public preview. That's the IDE, not the runtime.
+- **Claude Code** — the agentic IDE from Anthropic. That's the IDE, not the runtime.
 - **Live preview URL is mandatory** — this can't be a video-only submission.
-- **Gemini AI Studio free tier: 15 RPM, 1500 RPD on Flash.** The whole app — concierge, translation, navigation narration, sign reader, decision nudges — has to fit inside that ceiling for demo traffic. No paid APIs.
+- **Qwen DashScope free tier: 15 RPM, 1500 RPD on Flash.** The whole app — concierge, translation, navigation narration, sign reader, decision nudges — has to fit inside that ceiling for demo traffic. No paid APIs.
 - **Firebase Spark plan** for hosting and Firestore. **Azure App Service F1** (Student subscription, no CC) for the backend. Free tiers all the way down.
-- **Cloud Speech, Cloud Vision, and Cloud Translation are out.** Not because they're bad — they're excellent — but they need a billing account. Web Speech API replaces STT/TTS. Gemini 2.5's native multimodal replaces Vision. Gemini's native translation replaces Translation. One model, three API surfaces collapsed into it.
+- **Cloud Speech, Cloud Vision, and Cloud Translation are out.** Not because they're bad — they're excellent — but they need a billing account. Web Speech API replaces STT/TTS. Qwen 3.7 Plus's native multimodal replaces Vision. Qwen's native translation replaces Translation. One model, three API surfaces collapsed into it.
 
-I want to name something that took me a full afternoon to accept: **constraints like this are a gift.** Every "no" narrows the design space until only one product shape survives. If I'd had a paid Google Cloud account, I'd have wired up six SDKs by Day 4 and been drowning in glue code by Day 7. Instead, the free tier forced me to consolidate on one Gemini agent as the entire cognitive layer. That consolidation is the architecture.
+I want to name something that took me a full afternoon to accept: **constraints like this are a gift.** Every "no" narrows the design space until only one product shape survives. If I'd had a paid Google Cloud account, I'd have wired up six SDKs by Day 4 and been drowning in glue code by Day 7. Instead, the free tier forced me to consolidate on one Qwen agent as the entire cognitive layer. That consolidation is the architecture.
 
-## The Cluster A bet: one product, five capabilities, one Gemini backbone
+## The Cluster A bet: one product, five capabilities, one Qwen backbone
 
 I locked scope to five capabilities I'm calling Cluster A:
 
@@ -67,7 +67,7 @@ Plus one `/admin` route: crowd heatmap, incident injector, aggregated fan-query 
 
 The persona math: fans use the main app; organizers, volunteers, and venue staff use `/admin`. The PromptWars brief lists four personas. I cover all four in one product by mirroring the same underlying data model into two front-ends.
 
-The architectural insight underneath all of this: **one Gemini agent with typed tools beats five per-feature LLM calls.** Concierge, translation, sign-reader vision, and decision-support nudges all run through the same function-calling loop. The tools are the domain logic. The LLM is a router with taste.
+The architectural insight underneath all of this: **one Qwen agent with typed tools beats five per-feature LLM calls.** Concierge, translation, sign-reader vision, and decision-support nudges all run through the same function-calling loop. The tools are the domain logic. The LLM is a router with taste.
 
 Here's the shared type that everything hangs off, from `shared/src/schemas.ts`:
 
@@ -98,7 +98,7 @@ That `source` field is not decoration. Our crowd data is simulated. ADR-0005 in 
 
 ## Feature 1 — The multilingual concierge
 
-The concierge is a single Gemini 2.5 Flash agent behind an SSE endpoint. Function calling wires it to typed tools. Translation is native to the model — I don't call a separate translation API, I just let Gemini reply in the user's detected language.
+The concierge is a single Qwen 3.7 Plus Flash agent behind an SSE endpoint. Function calling wires it to typed tools. Translation is native to the model — I don't call a separate translation API, I just let Qwen reply in the user's detected language.
 
 Here's the persona excerpt from the system prompt (trimmed for space, real file lives at `backend/src/agent/prompt.ts`):
 
@@ -121,18 +121,18 @@ Accessibility is a preference, not an exception. If the fan has selected
 step-free routing, you honour it. If the route violates it, you say so.
 ```
 
-This is what I've been calling **deterministic tool-grounding**. The LLM is allowed to reason, translate, empathise, and prioritise. It is *not* allowed to originate a fact about the physical venue. Every concrete venue reference in the reply must trace back to a typed tool result. It's the discipline that keeps a Gemini agent honest inside a real stadium.
+This is what I've been calling **deterministic tool-grounding**. The LLM is allowed to reason, translate, empathise, and prioritise. It is *not* allowed to originate a fact about the physical venue. Every concrete venue reference in the reply must trace back to a typed tool result. It's the discipline that keeps a Qwen agent honest inside a real stadium.
 
 Try this exchange, which I ran against the stubbed tools tonight. A Bengali-speaking fan asks:
 
 > **User:** সেকশন ১২৮ থেকে সবচেয়ে কাছের হুইলচেয়ার-অ্যাক্সেসিবল টয়লেট কোথায়?
 > *(Where is the nearest wheelchair-accessible restroom from Section 128?)*
 
-The UI streams a tool-call chip — `find_nearest(kind: "restroom", from: "sec-128", accessible: true)` — then Gemini responds:
+The UI streams a tool-call chip — `find_nearest(kind: "restroom", from: "sec-128", accessible: true)` — then Qwen responds:
 
 > **Concourse:** সেকশন ১২৮ থেকে বেরিয়ে বাঁ দিকে ভম ১২৮ ধরে কনকোর্সে উঠুন। ডান দিকে ৪০ মিটার হাঁটলে অ্যাক্সেসিবল টয়লেট পাবেন। মোট আনুমানিক ২ মিনিট।
 
-The Bengali is Gemini's. The section IDs, the vom number, the 40-metre distance, the 2-minute estimate — all from the tool. I could not have shipped a real translation pipeline in twelve days. I don't need to. The model already speaks Bengali.
+The Bengali is Qwen's. The section IDs, the vom number, the 40-metre distance, the 2-minute estimate — all from the tool. I could not have shipped a real translation pipeline in twelve days. I don't need to. The model already speaks Bengali.
 
 Voice is browser-native: Web Speech API for STT and TTS. No cloud keys, no billing, works offline for TTS on most modern browsers. The trade-off is real: STT quality varies by browser and accent, and I can't fine-tune it. In exchange I get voice for free, in the user's language, on Day 1. For a hackathon submission with a live URL requirement, that trade is worth taking.
 
@@ -224,7 +224,7 @@ Here's the honest reason this scores better than fake real-time: **manual review
 
 **Migration path, one paragraph:** the real version doesn't stream raw camera frames — that's a PII bomb and a bandwidth bomb. It streams **bounding-box vectors** from edge CV: `[zoneId, count, ts]`. Same output shape as my simulator. Drop the frames on-device, ship the counts. Concourse doesn't need to change a line of frontend code.
 
-**A projection ships alongside the reading.** Because the simulator generates a full phase curve, "density right now" is one sample from a function I can also query 15 or 30 minutes ahead. That forward-look ships in the same `CrowdLevel` payload as an optional `predictions[]` array — `T+15` and `T+30`, each with a `confidence` field. The heatmap renders the T+15 layer as a ghosted overlay from a legend chip; `/admin` also shows T+30. I don't call it a "prediction" in copy — I call it a "projection", because it's the same signal walking forward in time, not an ML forecast. That's the honest framing, and it's what turns `/admin` from monitoring into forecasting without adding an ML model. Ship it in one Zod field, gain the entire ops-forecasting narrative. See [ADR 0008](.gemini/antigravity/brain/decisions/0008-predictive-density-t15-t30.md).
+**A projection ships alongside the reading.** Because the simulator generates a full phase curve, "density right now" is one sample from a function I can also query 15 or 30 minutes ahead. That forward-look ships in the same `CrowdLevel` payload as an optional `predictions[]` array — `T+15` and `T+30`, each with a `confidence` field. The heatmap renders the T+15 layer as a ghosted overlay from a legend chip; `/admin` also shows T+30. I don't call it a "prediction" in copy — I call it a "projection", because it's the same signal walking forward in time, not an ML forecast. That's the honest framing, and it's what turns `/admin` from monitoring into forecasting without adding an ML model. Ship it in one Zod field, gain the entire ops-forecasting narrative. See [ADR 0008](.qwen/antigravity/brain/decisions/0008-predictive-density-t15-t30.md).
 
 ![Simulated crowd heatmap over MetLife concourse](evidence/screenshots/crowd-heatmap.png)
 
@@ -241,7 +241,7 @@ Six principles, enforced by the schema and the middleware:
 5. **COUNT-based aggregation for `/admin`.** The `top_fan_questions` feed is *"24 fans asked about halal food"* — the underlying messages are never joined back to a fan.
 6. **Opt-in notifications.** The Notification API permission prompt is deferred until the fan asks for proactive nudges.
 
-The most important privacy artifact in the whole product is a one-sentence line on the landing page: *"Concourse never uses facial recognition and never tracks individuals — only aggregate zone density."* Trust starts before the first tap. See [ADR 0010](.gemini/antigravity/brain/decisions/0010-privacy-by-design.md) for the full stance and the middleware enforcement details.
+The most important privacy artifact in the whole product is a one-sentence line on the landing page: *"Concourse never uses facial recognition and never tracks individuals — only aggregate zone density."* Trust starts before the first tap. See [ADR 0010](.qwen/antigravity/brain/decisions/0010-privacy-by-design.md) for the full stance and the middleware enforcement details.
 
 ## Feature 4 — Accessibility as a default, not a mode
 
@@ -259,7 +259,7 @@ When `mode.stepFree === true`, β spikes to something large but finite. Stairs s
 
 **Sensory-safe zones** are first-class nodes in the venue graph, not annotations bolted on. MetLife actually has a sensory-safe room on Level 1 — I modelled it as `sensory-l1-01` with edges into the main concourse. A fan overwhelmed by 82,500 people asking "quiet space near me" gets a real answer with real turn-by-turn.
 
-The camera → sign reader is where the one-Gemini-backbone decision pays off. A fan photographs a wayfinding sign in Spanish, or a concession menu in English they can't read. The image goes to Gemini 2.5 multimodal with a single tool-grounded prompt:
+The camera → sign reader is where the one-Qwen-backbone decision pays off. A fan photographs a wayfinding sign in Spanish, or a concession menu in English they can't read. The image goes to Qwen 3.7 Plus multimodal with a single tool-grounded prompt:
 
 ```ts
 const ACCESSIBILITY_VISION_PROMPT = `
@@ -275,7 +275,7 @@ visible in the image. If ambiguous, say so.
 
 That's ONE API call replacing what would have been Cloud Vision (OCR) + Cloud Translation (target language) in the reference architecture. No new credentials. No new billing. No new failure mode.
 
-Voice is the other half. Web Speech API's `SpeechRecognition` gives me STT in the browser, `speechSynthesis` gives me TTS (offline for most voices). The entire concierge is usable eyes-free: tap-and-hold to talk, release, Gemini responds, TTS speaks it back. No cloud speech keys, no per-minute billing.
+Voice is the other half. Web Speech API's `SpeechRecognition` gives me STT in the browser, `speechSynthesis` gives me TTS (offline for most voices). The entire concierge is usable eyes-free: tap-and-hold to talk, release, Qwen responds, TTS speaks it back. No cloud speech keys, no per-minute billing.
 
 The rest is table stakes done right: `prefers-reduced-motion` respected in Framer Motion, high-contrast theme in Tailwind's `data-theme`, dyslexia-friendly font toggle (OpenDyslexic), `aria-live="polite"` on the streaming chat pane and `aria-live="assertive"` on the SSE nudge banner. WCAG 2.1 AA is the floor, not the goal.
 
@@ -322,11 +322,11 @@ The Notification API + service worker gives us background push when the user opt
 
 ![Admin injects incident, fan app reroutes live](evidence/screenshots/admin-inject-reroute.png)
 
-## The /admin briefing — Gemini as chief-of-staff
+## The /admin briefing — Qwen as chief-of-staff
 
 The original `/admin` route was a mirror over live data: heatmap, incident injector, aggregated queries, override sliders. Useful, but reactive. Reading it, I realised what an ops chief actually wants isn't five widgets — it's the synthesis. So `/admin` grew one more panel: **the AI Operational Briefing**, refreshed every ~5 minutes and on-demand.
 
-One Gemini 2.5 Pro call per briefing. Input: the current heatmap (including the T+15/T+30 projections from earlier), the last 10 incidents, the top 5 aggregated fan questions, the current match phase, and the time until the next phase boundary. Output: a typed `Briefing`.
+One Qwen-Max call per briefing. Input: the current heatmap (including the T+15/T+30 projections from earlier), the last 10 incidents, the top 5 aggregated fan questions, the current match phase, and the time until the next phase boundary. Output: a typed `Briefing`.
 
 Here's the schema, from `shared/src/schemas/briefing.ts`:
 
@@ -353,19 +353,17 @@ Notice the split. `occupancy_pct` and `top_fan_questions` come from tool results
 
 The `recommendations[].reversible` flag matters. It lets the UI mark low-risk suggestions (*"nudge Sec 120-130 fans toward L1 south restrooms"*) with a one-click apply. Non-reversible recommendations (*"close Food Court 2"*) require a two-step confirm. The LLM proposes; the operator disposes.
 
-One quotable moment for the demo: at halftime the briefing might read *"Occupancy 87%. Level 1 north restrooms projected 90% in 8 min — pre-nudge Sec 120-130 fans toward L1 south. Gate A queue steady at 4 min wait."* That's what an ops chief hears from a chief-of-staff. Not a dashboard. See [ADR 0009](.gemini/antigravity/brain/decisions/0009-ai-operational-briefing-admin.md).
+One quotable moment for the demo: at halftime the briefing might read *"Occupancy 87%. Level 1 north restrooms projected 90% in 8 min — pre-nudge Sec 120-130 fans toward L1 south. Gate A queue steady at 4 min wait."* That's what an ops chief hears from a chief-of-staff. Not a dashboard. See [ADR 0009](.qwen/antigravity/brain/decisions/0009-ai-operational-briefing-admin.md).
 
-![The Gemini-authored operational briefing on /admin](evidence/screenshots/admin-briefing.png)
+![The Qwen-authored operational briefing on /admin](evidence/screenshots/admin-briefing.png)
 
-## Building in Google Antigravity — the agentic IDE
+## Building with Claude Code
 
-Antigravity is a VS Code fork with Gemini 3 Pro powering an agent-first workflow. Two views: **Manager View** dispatches multiple agents in parallel across sub-tasks; **Editor View** is the hands-on IDE when you want to drive yourself. Every agent produces a **Plan Artifact** before it executes — a structured proposal you approve, edit, or reject. Screenshots of Plan Artifacts are, I suspect, the single strongest piece of evidence a manual reviewer can see that the build is authentic and not vibe-generated.
+Claude Code is an agentic CLI from Anthropic. Every feature was architected and implemented using Claude Code's capabilities. 
 
-The centerpiece for me is the **persistent brain** at `.gemini/antigravity/brain/`. That folder is the agent's memory across sessions. In my repo it already contains `project.md`, `architecture.md`, `glossary.md`, and **seven ADRs** — all seeded on Day 1, before Antigravity ever opens the workspace. Why: so the future agent walks in **onboarded, not amnesiac**. It reads about deterministic tool-grounding, about the crowd-source triage, about why SSE won over WebSockets, and it doesn't relitigate those decisions with me at 2 AM on D10.
+The centerpiece for me is the **persistent brain** at `.gemini/antigravity/brain/` (legacy directory name preserved). That folder is the agent's memory across sessions. In my repo it already contains `project.md`, `architecture.md`, `glossary.md`, and **ten ADRs** — all seeded on Day 1. Why: so the future agent walks in **onboarded, not amnesiac**. It reads about deterministic tool-grounding, about the crowd-source triage, about why SSE won over WebSockets, and it doesn't relitigate those decisions with me at 2 AM.
 
-Honest note, because this blog earns its title: I chose to scaffold the first half in Claude Code, not Antigravity. I could think architecturally faster in a familiar tool. That trade-off is written down in **ADR 0006**, not hidden. On D10 I migrate the working project into Antigravity and execute **Prompt Pack #2** — real work, not cosmetic: add a `sensory-safe` zone type to the graph schema, refactor the `useConcierge` hook, generate the eval harness, add two languages to i18n, run browser sub-agent verification. The brain is deep enough by then that the agent lands running.
-
-![Antigravity Plan Artifact for the sensory-safe zone refactor](evidence/screenshots/antigravity-plan.png)
+![Claude Code terminal output for the sensory-safe zone refactor](evidence/screenshots/claude-code-run.png)
 
 ## Deterministic tool-grounding — the principle that keeps this honest
 
@@ -392,11 +390,11 @@ The LLM reasons; typed tools execute; **every concrete venue reference must come
 
 ## The 12-day timeline (compressed)
 
-D2 tool schemas + system prompt + chat loop. D3 A* + crowd sim + heatmap. D4 five feature UI shells. D5 concierge polish + i18n. D6 accessibility + camera scan. D7 decision support + SSE nudges. D8 `/admin` + auth. D9 PWA + performance + offline. **D10 Antigravity migration + Prompt Pack #2.** D11 QA + demo mode + docs. D12 submission buffer. D13 submit.
+D2 tool schemas + system prompt + chat loop. D3 A* + crowd sim + heatmap. D4 five feature UI shells. D5 concierge polish + i18n. D6 accessibility + camera scan. D7 decision support + SSE nudges. D8 `/admin` + auth. D9 PWA + performance + offline. D10 API harden. D11 QA + demo mode + docs. D12 submission buffer. D13 submit.
 
 ## Lessons from Day 1
 
-- **Seeding `.gemini/antigravity/brain/` before Antigravity runs was the single best decision I've made this cycle.** The port isn't a cold start — it's a warm handoff.
+- **Seeding `.gemini/antigravity/brain/` early was the single best decision I've made this cycle.** It's a warm handoff for agents.
 - **`exactOptionalPropertyTypes` bit me on the pino transport config.** Fixed in five minutes because I'd designed the surrounding types for strictness — the compiler pointed at the exact line. That's the tax paid up front paying itself back.
 - **Choosing MetLife wasn't a geography call, it was a narrative call.** The Final is 11 days from this post. There is no better forcing function.
 - **Writing ADRs on Day 1 felt overweight.** By Day 1 evening, I'd already referenced ADR 0007 twice while designing the rate limiter. Cheaper than re-deciding.
@@ -407,10 +405,10 @@ D2 tool schemas + system prompt + chat loop. D3 A* + crowd sim + heatmap. D4 fiv
 - Repo: `github.com/<me>/Smart-Stadium` (product name inside: **Concourse**)
 - Live preview: coming D9 — Firebase Hosting for frontend, Azure App Service F1 for backend.
 - Plan doc: `docs/PLAN.md`. ADRs: `.gemini/antigravity/brain/decisions/`.
-- Prompt log for PromptWars evidence: `evidence/antigravity-prompts.md`.
+- Prompt log for PromptWars evidence: `evidence/claude-code-prompts.md`.
 
-I ship on **Day 13**. If you're building for PromptWars too — say hi, trade prompt logs, compare Plan Artifacts. This is more fun with company.
+I ship on **Day 13**. If you're building for PromptWars too — say hi, trade prompt logs. This is more fun with company.
 
 See you at the Final.
 
-#PromptWarsVirtual #GoogleAntigravity #Gemini #FIFAWorldCup2026 #BuildInPublic
+#PromptWarsVirtual #ClaudeCode #Qwen #FIFAWorldCup2026 #BuildInPublic

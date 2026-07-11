@@ -21,7 +21,7 @@ export function MessageBubble({ msg }: { msg: ChatMessage }) {
               : 'bg-surface-900 text-surface-50 rounded-bl-md',
           ].join(' ')}
         >
-          {msg.text || (msg.streaming ? <TypingDots /> : null)}
+          {msg.text || (msg.streaming && (!msg.tools || msg.tools.length === 0) ? <TypingDots /> : null)}
           {msg.text && msg.streaming && <span className="ml-0.5 inline-block animate-pulse">▍</span>}
         </div>
       </div>

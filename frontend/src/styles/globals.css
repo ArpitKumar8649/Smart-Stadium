@@ -13,7 +13,7 @@ html {
 }
 
 body {
-  @apply bg-surface-950 text-surface-50 min-h-screen;
+  @apply bg-surface-950 text-surface-50 min-h-screen selection:bg-primary-900 selection:text-primary-100;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -25,4 +25,37 @@ body {
 
 *:focus-visible {
   @apply outline-none ring-2 ring-primary ring-offset-2 ring-offset-surface-950;
+}
+
+/* Custom Utilities for Glassmorphism & Glows */
+@layer utilities {
+  .glass-panel {
+    @apply bg-surface-900/40 backdrop-blur-xl border border-surface-700/50 shadow-2xl;
+  }
+
+  .glow-primary {
+    box-shadow: 0 0 60px -15px theme('colors.primary.600');
+  }
+
+  .glow-accent {
+    box-shadow: 0 0 60px -15px theme('colors.accent.600');
+  }
+
+  .text-gradient {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-surface-50 via-surface-200 to-surface-400;
+  }
+}
+
+/* Background Ambient Orbs Animation */
+@keyframes float {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-20px) scale(1.05); }
+}
+
+.animate-float {
+  animation: float 8s ease-in-out infinite;
+}
+.animate-float-delayed {
+  animation: float 10s ease-in-out infinite;
+  animation-delay: -4s;
 }
