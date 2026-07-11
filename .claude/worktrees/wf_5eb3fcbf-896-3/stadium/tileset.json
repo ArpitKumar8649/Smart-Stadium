@@ -1,0 +1,8 @@
+{
+  "default": {
+    "key": "honeycrisp",
+    "name": "Honeycrisp",
+    "url": "https://tiles-cdn.mappedin.com/styles/honeycrisp/style.json"
+  },
+  "others": []
+}

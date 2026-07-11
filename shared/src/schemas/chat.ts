@@ -17,6 +17,7 @@ export const ChatRequestSchema = z.object({
   lang: z.enum(SUPPORTED_LOCALES).optional(),
   image_b64: z.string().optional(),
   location_node_id: z.string().optional(),
+  context: z.record(z.unknown()).optional(),
 });
 export type ChatRequest = z.infer<typeof ChatRequestSchema>;
 

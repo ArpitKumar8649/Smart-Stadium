@@ -41,6 +41,8 @@ export interface PromptContext {
   matchLabel?: string;
   /** Accessibility preferences already known, e.g. ["step_free", "wheelchair"]. */
   accessibility?: string[];
+  /** Context from frontend */
+  context?: Record<string, unknown>;
 }
 
 /**
@@ -57,6 +59,9 @@ export function buildSystemPrompt(ctx: PromptContext): string {
   if (ctx.matchLabel) lines.push(`- Today's match: ${ctx.matchLabel}`);
   if (ctx.accessibility && ctx.accessibility.length > 0) {
     lines.push(`- Accessibility preferences: ${ctx.accessibility.join(', ')} (route step-free)`);
+  }
+  if (ctx.context?.location) {
+    lines.push(`- GPS Location: ${JSON.stringify(ctx.context.location)}`);
   }
 
   if (lines.length === 0) return base;

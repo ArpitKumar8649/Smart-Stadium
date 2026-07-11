@@ -59,8 +59,8 @@ function humanTime(seconds: number): string {
 
 export default function Navigate() {
   const { prefs } = useA11y();
-  const [fromLabel, setFromLabel] = useState('Section 144');
-  const [toLabel, setToLabel] = useState("Women's Restroom");
+  const [fromLabel, setFromLabel] = useState('');
+  const [toLabel, setToLabel] = useState('');
   const [mode, setMode] = useState<RoutingMode>(prefs.step_free ? 'step_free' : 'low_crowd');
   const [activeFloor, setActiveFloor] = useState(1);
   const [forecast, setForecast] = useState<ForecastOffset>(0);

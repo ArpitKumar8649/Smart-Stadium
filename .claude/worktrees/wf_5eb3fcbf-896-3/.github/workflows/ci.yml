@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  verify:
+    name: typecheck · lint · test · build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20.11.1'
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Build shared (types the other workspaces import)
+        run: npm run build -w shared
+
+      - name: Typecheck
+        run: npm run typecheck --workspaces --if-present
+
+      - name: Lint
+        run: npx eslint backend/src shared/src frontend/src scripts
+
+      - name: Test
+        run: npm run test --workspaces --if-present
+
+      - name: Build frontend
+        run: npm run build -w frontend
+
+      - name: Build backend
+        run: npm run build -w backend
