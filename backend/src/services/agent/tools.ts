@@ -214,11 +214,30 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
       additionalProperties: false,
     },
   },
+  {
+    name: 'findOutdoorRoute',
+    description: 'Calculate an outdoor driving/transit route from the user\'s current GPS location to MetLife Stadium. Call this when the user asks how to get to the stadium from outside (e.g. from their hotel, home, or another city).',
+    parameters: {
+      type: 'object',
+      properties: {
+        destination_name: {
+          type: 'string',
+          description: 'Optional name of the destination (defaults to MetLife Stadium).'
+        }
+      },
+      required: [],
+      additionalProperties: false
+    }
+  }
 ];
 
 // ---------------------------------------------------------------------------
 // Argument schemas (one per tool)
 // ---------------------------------------------------------------------------
+
+const FindOutdoorRouteArgs = z.object({
+  destination_name: z.string().optional()
+});
 
 const FindRouteArgs = z.object({
   from_label: z.string().min(1),
@@ -609,20 +628,85 @@ function handleGetCrowd(raw: unknown): ToolResult {
   return ok({ phase: sim.phase(), ...view }, `${view.zone}: ${view.level} (wait ${view.wait})`);
 }
 
+async function handleFindOutdoorRoute(args: unknown, context?: { location?: { lat: number, lng: number } }): Promise<ToolResult> {
+  const parsed = FindOutdoorRouteArgs.safeParse(args);
+  if (!parsed.success) return fail(`Invalid findOutdoorRoute arguments: ${zodMessage(parsed.error)}`);
+
+  if (!context?.location) {
+    return fail(
+      "Cannot compute outdoor route: I don't know the user's location. Ask them to click 'Share Location'.",
+      "Missing GPS location"
+    );
+  }
+
+  try {
+    const response = await fetch('https://routes.googleapis.com/directions/v2:computeRoutes', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Goog-Api-Key': 'AIzaSyA2OpxWOrsXFAfLOXxuYNbqyngXHBbuimw',
+        'X-Goog-FieldMask': 'routes.distanceMeters,routes.duration,routes.polyline.encodedPolyline'
+      },
+      body: JSON.stringify({
+        origin: {
+          location: {
+            latLng: {
+              latitude: context.location.lat,
+              longitude: context.location.lng
+            }
+          }
+        },
+        destination: {
+          location: {
+            latLng: {
+              latitude: 40.8128,
+              longitude: -74.0742
+            }
+          }
+        },
+        travelMode: 'DRIVE'
+      })
+    });
+
+    if (!response.ok) {
+      return fail(`Google Routes API failed: ${response.status}`, "Routing API error");
+    }
+
+    const data = await response.json() as any;
+    if (!data.routes || data.routes.length === 0) {
+      return fail("No route found from that location to MetLife Stadium.", "No route found");
+    }
+
+    const route = data.routes[0];
+    const summary = `Outdoor route to MetLife: ${Math.round(route.distanceMeters / 1000)}km, ${Math.round(parseInt(route.duration) / 60)} minutes. polyline: ${route.polyline.encodedPolyline}`;
+
+    return ok({
+      distance_meters: route.distanceMeters,
+      duration_seconds: parseInt(route.duration),
+      polyline: route.polyline.encodedPolyline,
+      destination: "MetLife Stadium"
+    }, summary);
+  } catch (err) {
+    return fail("Failed to contact Google Routes API", "Network error");
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Dispatch
 // ---------------------------------------------------------------------------
 
 /**
- * Execute a tool call by name. `args` is the JSON-parsed arguments object the
+ * Execute a tool call by name. \`args\` is the JSON-parsed arguments object the
  * model emitted (ToolCall.arguments after JSON.parse). Never throws: unknown
- * tools, bad args, and downstream failures all resolve to `{ ok: false }`.
+ * tools, bad args, and downstream failures all resolve to \`{ ok: false }\`.
  */
-export async function handleToolCall(name: string, args: unknown): Promise<ToolResult> {
+export async function handleToolCall(name: string, args: unknown, context?: { location?: { lat: number, lng: number } }): Promise<ToolResult> {
   try {
     switch (name) {
       case 'find_route':
         return handleFindRoute(args);
+      case 'findOutdoorRoute':
+        return await handleFindOutdoorRoute(args, context);
       case 'find_nearest':
         return handleFindNearest(args);
       case 'get_venue_info':

@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { Wordmark } from '../components/brand/Logo.tsx';
+import TrophyScene from '../components/trophy/TrophyScene.tsx';
 
 const FEATURES = [
   {
@@ -65,7 +66,7 @@ export default function Landing() {
         </header>
 
         {/* Hero Section */}
-        <section className="mt-24 flex flex-col items-center text-center lg:mt-32">
+        <section className="mt-16 flex flex-col items-center text-center lg:mt-20">
           <div className="inline-flex items-center gap-2 rounded-pill border border-primary-800/50 bg-primary-950/30 px-3 py-1.5 text-xs font-semibold text-primary-300 backdrop-blur-md">
             <span className="relative flex h-2 w-2">
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary-400 opacity-75" />
@@ -84,7 +85,7 @@ export default function Landing() {
             Concourse is a unified GenAI agent that actually knows the building. Ask in any language, get a step-free route, avoid the crowds, and receive live tactical nudges.
           </p>
 
-          <div className="mt-12 flex w-full max-w-md flex-col gap-4 sm:flex-row sm:items-center sm:justify-center">
+          <div className="mt-10 flex w-full max-w-md flex-col gap-4 sm:flex-row sm:items-center sm:justify-center">
             <Link
               to="/concierge"
               className="glow-primary group flex w-full items-center justify-center gap-2 rounded-pill bg-primary px-8 py-4 font-semibold text-surface-950 transition-all hover:scale-105 hover:bg-primary-400 sm:w-auto"
@@ -101,8 +102,13 @@ export default function Landing() {
           </div>
         </section>
 
+        {/* 3D Trophy with typing text */}
+        <section className="mt-8">
+          <TrophyScene />
+        </section>
+
         {/* Features Grid */}
-        <section className="mt-32 pb-24">
+        <section className="mt-16 pb-24">
           <div className="mb-12 text-center">
             <h2 className="font-display text-3xl font-semibold text-surface-50">One agent. Five capabilities.</h2>
             <p className="mt-3 text-surface-400">Powered by Qwen and a real 3,400+ node stadium graph.</p>

@@ -37,7 +37,7 @@ export function useConcierge(sessionId: string) {
   historyRef.current = messages;
 
   const send = useCallback(
-    async (text: string, lang?: string, locationNodeId?: string) => {
+    async (text: string, lang?: string, locationNodeId?: string, gpsCoords?: {lat: number, lng: number}) => {
       if (!text.trim() || busy) return;
       setBusy(true);
 
@@ -60,16 +60,21 @@ export function useConcierge(sessionId: string) {
       abortRef.current = ctrl;
 
       try {
+        const reqBody: any = {
+          session_id: sessionId,
+          message: text,
+          history: historyToSent,
+        };
+        if (lang) reqBody.lang = lang;
+        if (locationNodeId) reqBody.location_node_id = locationNodeId;
+        if (gpsCoords) {
+          reqBody.context = { location: gpsCoords };
+        }
+
         const res = await fetch(`${API_BASE}/api/chat`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            session_id: sessionId,
-            message: text,
-            history: historyToSent,
-            ...(lang ? { lang } : {}),
-            ...(locationNodeId ? { location_node_id: locationNodeId } : {}),
-          }),
+          body: JSON.stringify(reqBody),
           signal: ctrl.signal,
         });
 

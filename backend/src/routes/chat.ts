@@ -18,7 +18,7 @@ chatRouter.post('/chat', async (req, res) => {
     });
     return;
   }
-  const { message, history, lang, location_node_id } = parsed.data;
+  const { message, history, lang, location_node_id, context } = parsed.data;
 
   res.writeHead(200, {
     'Content-Type': 'text/event-stream',
@@ -51,6 +51,7 @@ chatRouter.post('/chat', async (req, res) => {
       ...(history ? { history } : {}),
       ...(lang ? { lang } : {}),
       ...(locationLabel ? { locationLabel } : {}),
+      ...(context ? { context } : {}),
       signal: ac.signal,
     })) {
       send(ev);
