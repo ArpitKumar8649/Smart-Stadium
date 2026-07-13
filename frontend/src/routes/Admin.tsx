@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Wordmark } from '../components/brand/Logo.tsx';
 import { MapCanvas, type CrowdMapZone } from '../features/navigate/MapCanvas.tsx';
 import { densityColor } from '../features/navigate/crowdStyle.ts';
+import { PaTranslatorPanel } from '../features/admin/PaTranslatorPanel.tsx';
 import type { Briefing, BriefingConcern, BriefingRecommendation } from '@concourse/shared';
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? '';
@@ -192,6 +193,8 @@ export default function Admin() {
               </div>
             )}
           </section>
+
+          <PaTranslatorPanel />
 
           <section className="mt-auto border-t border-surface-800 pt-6">
             <h2 className="mb-3 font-display text-sm font-semibold uppercase tracking-wider text-accent">Demo Injection</h2>
