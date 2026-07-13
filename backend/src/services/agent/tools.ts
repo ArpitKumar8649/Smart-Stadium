@@ -24,6 +24,7 @@ import {
 } from '../graph/loader.js';
 import { route } from '../graph/astar.js';
 import { getCrowdSimulator } from '../crowd/simulator.js';
+import { env } from '../../config/env.js';
 
 /** Uniform result envelope for every tool call. */
 export interface ToolResult {
@@ -215,8 +216,8 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
     },
   },
   {
-    name: 'findOutdoorRoute',
-    description: 'Calculate an outdoor driving/transit route from the user\'s current GPS location to MetLife Stadium. Call this when the user asks how to get to the stadium from outside (e.g. from their hotel, home, or another city).',
+    name: 'find_outdoor_route',
+    description: 'Calculate outdoor routes from the user\'s current GPS location to MetLife Stadium across every available travel mode (driving, two-wheeler, public transit, cycling, walking), returning the distance and travel time for each. Call this when the user asks how to get to the stadium from outside (e.g. from their hotel, home, or another city). Present all available modes so the fan can compare them.',
     parameters: {
       type: 'object',
       properties: {
@@ -628,9 +629,83 @@ function handleGetCrowd(raw: unknown): ToolResult {
   return ok({ phase: sim.phase(), ...view }, `${view.zone}: ${view.level} (wait ${view.wait})`);
 }
 
+// Ground travel modes the Google Routes API supports. Air travel is not
+// available from any single routing API, so we honestly omit it. Order matters:
+// it drives the preferred polyline for the map and the display order.
+const OUTDOOR_MODES = [
+  { mode: 'DRIVE', label: 'Driving' },
+  { mode: 'TWO_WHEELER', label: 'Two-wheeler' },
+  { mode: 'TRANSIT', label: 'Public transit' },
+  { mode: 'BICYCLE', label: 'Cycling' },
+  { mode: 'WALK', label: 'Walking' },
+] as const;
+
+const METLIFE_LATLNG = { latitude: 40.8128, longitude: -74.0742 };
+
+interface OutdoorModeResult {
+  mode: string;
+  label: string;
+  distance_meters: number;
+  duration_seconds: number;
+  polyline: string;
+}
+
+function formatKm(meters: number): string {
+  return meters >= 1000 ? `${(meters / 1000).toFixed(meters >= 10000 ? 0 : 1)} km` : `${Math.round(meters)} m`;
+}
+
+function formatDuration(seconds: number): string {
+  const mins = Math.round(seconds / 60);
+  if (mins < 60) return `${mins} min`;
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return m === 0 ? `${h} h` : `${h} h ${m} min`;
+}
+
+/** Query Google Routes for a single travel mode. Never throws; null = no route. */
+async function computeOutdoorMode(
+  origin: { lat: number; lng: number },
+  entry: (typeof OUTDOOR_MODES)[number],
+): Promise<OutdoorModeResult | null> {
+  try {
+    const response = await fetch('https://routes.googleapis.com/directions/v2:computeRoutes', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Goog-Api-Key': env.GOOGLE_ROUTES_API_KEY ?? '',
+        'X-Goog-FieldMask': 'routes.distanceMeters,routes.duration,routes.polyline.encodedPolyline',
+      },
+      body: JSON.stringify({
+        origin: { location: { latLng: { latitude: origin.lat, longitude: origin.lng } } },
+        destination: { location: { latLng: METLIFE_LATLNG } },
+        travelMode: entry.mode,
+      }),
+      signal: AbortSignal.timeout(10_000),
+    });
+
+    if (!response.ok) return null;
+    const data = (await response.json()) as {
+      routes?: { distanceMeters?: number; duration?: string; polyline?: { encodedPolyline?: string } }[];
+    };
+    const route = data.routes?.[0];
+    if (!route || typeof route.distanceMeters !== 'number' || !route.duration) return null;
+
+    return {
+      mode: entry.mode,
+      label: entry.label,
+      distance_meters: route.distanceMeters,
+      duration_seconds: parseInt(route.duration, 10),
+      polyline: route.polyline?.encodedPolyline ?? '',
+    };
+  } catch {
+    // Timeout, network error, or unsupported mode in this region — skip silently.
+    return null;
+  }
+}
+
 async function handleFindOutdoorRoute(args: unknown, context?: { location?: { lat: number, lng: number } }): Promise<ToolResult> {
   const parsed = FindOutdoorRouteArgs.safeParse(args);
-  if (!parsed.success) return fail(`Invalid findOutdoorRoute arguments: ${zodMessage(parsed.error)}`);
+  if (!parsed.success) return fail(`Invalid find_outdoor_route arguments: ${zodMessage(parsed.error)}`);
 
   if (!context?.location) {
     return fail(
@@ -639,56 +714,50 @@ async function handleFindOutdoorRoute(args: unknown, context?: { location?: { la
     );
   }
 
-  try {
-    const response = await fetch('https://routes.googleapis.com/directions/v2:computeRoutes', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Goog-Api-Key': 'AIzaSyA2OpxWOrsXFAfLOXxuYNbqyngXHBbuimw',
-        'X-Goog-FieldMask': 'routes.distanceMeters,routes.duration,routes.polyline.encodedPolyline'
-      },
-      body: JSON.stringify({
-        origin: {
-          location: {
-            latLng: {
-              latitude: context.location.lat,
-              longitude: context.location.lng
-            }
-          }
-        },
-        destination: {
-          location: {
-            latLng: {
-              latitude: 40.8128,
-              longitude: -74.0742
-            }
-          }
-        },
-        travelMode: 'DRIVE'
-      })
-    });
-
-    if (!response.ok) {
-      return fail(`Google Routes API failed: ${response.status}`, "Routing API error");
-    }
-
-    const data = await response.json() as any;
-    if (!data.routes || data.routes.length === 0) {
-      return fail("No route found from that location to MetLife Stadium.", "No route found");
-    }
-
-    const route = data.routes[0];
-    const summary = `Outdoor route to MetLife: ${Math.round(route.distanceMeters / 1000)}km, ${Math.round(parseInt(route.duration) / 60)} minutes. polyline: ${route.polyline.encodedPolyline}`;
-
-    return ok({
-      distance_meters: route.distanceMeters,
-      duration_seconds: parseInt(route.duration),
-      polyline: route.polyline.encodedPolyline,
-      destination: "MetLife Stadium"
-    }, summary);
-  } catch (err) {
-    return fail("Failed to contact Google Routes API", "Network error");
+  if (!env.GOOGLE_ROUTES_API_KEY) {
+    return fail(
+      "Outdoor routing is not configured on this server (missing GOOGLE_ROUTES_API_KEY). Indoor navigation still works.",
+      "Outdoor routing unavailable"
+    );
   }
+
+  const settled = await Promise.all(
+    OUTDOOR_MODES.map((entry) => computeOutdoorMode(context.location!, entry)),
+  );
+  const options = settled.filter((r): r is OutdoorModeResult => r !== null);
+
+  if (options.length === 0) {
+    return fail(
+      "No ground route (driving, transit, cycling, or walking) exists from that location to MetLife Stadium — it may be on another continent, with no drivable connection.",
+      "No route found",
+    );
+  }
+
+  // Prefer a driving polyline for the map, then transit, then whatever we have.
+  const primary =
+    options.find((o) => o.mode === 'DRIVE' && o.polyline) ??
+    options.find((o) => o.mode === 'TRANSIT' && o.polyline) ??
+    options.find((o) => o.polyline) ??
+    options[0]!;
+
+  const lines = options.map((o) => `- ${o.label}: ${formatKm(o.distance_meters)}, ${formatDuration(o.duration_seconds)}`);
+  // Keep a `polyline: <encoded>` token on its own line — the frontend map parses it.
+  const summary =
+    `Outdoor routes to MetLife Stadium:\n${lines.join('\n')}\npolyline: ${primary.polyline}`;
+
+  return ok(
+    {
+      destination: "MetLife Stadium",
+      options: options.map((o) => ({
+        mode: o.mode,
+        label: o.label,
+        distance_meters: o.distance_meters,
+        duration_seconds: o.duration_seconds,
+      })),
+      polyline: primary.polyline,
+    },
+    summary,
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -705,7 +774,7 @@ export async function handleToolCall(name: string, args: unknown, context?: { lo
     switch (name) {
       case 'find_route':
         return handleFindRoute(args);
-      case 'findOutdoorRoute':
+      case 'find_outdoor_route':
         return await handleFindOutdoorRoute(args, context);
       case 'find_nearest':
         return handleFindNearest(args);

@@ -24,6 +24,7 @@ export class QwenProvider implements LlmProvider {
   private readonly client: OpenAI;
   private readonly chatModel: string;
   private readonly vlModel: string;
+  private readonly maxTokens: number;
 
   constructor() {
     if (!env.DASHSCOPE_API_KEY) {
@@ -35,6 +36,20 @@ export class QwenProvider implements LlmProvider {
     });
     this.chatModel = env.QWEN_MODEL_CHAT;
     this.vlModel = env.QWEN_MODEL_VL;
+    this.maxTokens = env.QWEN_MAX_TOKENS;
+  }
+
+  /**
+   * DashScope thinking-mode params for Qwen3 models, as loose extra body fields
+   * (the OpenAI SDK types don't know them, but DashScope reads them). `off`
+   * returns nothing, so behaviour is unchanged for non-reasoning models.
+   * NOTE: thinking mode requires streaming — only applied in streamChat().
+   */
+  private thinkingParams(): Record<string, unknown> {
+    const budgets: Record<string, number> = { low: 2000, medium: 8000, high: 24000 };
+    const level = env.QWEN_REASONING;
+    if (level === 'off') return {};
+    return { enable_thinking: true, thinking_budget: budgets[level] };
   }
 
   private toOpenAiMessages(messages: ChatMessage[]): ChatCompletionMessageParam[] {
@@ -77,9 +92,13 @@ export class QwenProvider implements LlmProvider {
       messages: this.toOpenAiMessages(opts.messages),
       ...(tools ? { tools } : {}),
       temperature: opts.temperature ?? 0.3,
-      max_tokens: opts.maxTokens ?? 800,
+      max_tokens: opts.maxTokens ?? this.maxTokens,
       stream: true,
       stream_options: { include_usage: true },
+      // Reasoning (thinking) params — DashScope extra body fields, ignored by
+      // models that don't support them. Cast to {} so the streaming overload is
+      // still selected; the runtime keys are sent regardless. Empty when off.
+      ...(this.thinkingParams() as Record<never, never>),
     }, opts.signal ? { signal: opts.signal } : {});
 
     // Accumulate streamed tool-call fragments by index.
@@ -133,7 +152,7 @@ export class QwenProvider implements LlmProvider {
       messages: this.toOpenAiMessages(opts.messages),
       ...(tools ? { tools } : {}),
       temperature: opts.temperature ?? 0.3,
-      max_tokens: opts.maxTokens ?? 800,
+      max_tokens: opts.maxTokens ?? this.maxTokens,
     }, opts.signal ? { signal: opts.signal } : {});
 
     const choice = res.choices[0];

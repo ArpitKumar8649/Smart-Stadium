@@ -14,9 +14,18 @@ const RawEnvSchema = z.object({
   QWEN_MODEL_CHAT: z.string().default('qwen-plus'),
   QWEN_MODEL_VL: z.string().default('qwen-vl-max'),
   QWEN_MODEL_EMBED: z.string().default('text-embedding-v3'),
+  // Max output tokens for chat/concierge completions.
+  QWEN_MAX_TOKENS: z.coerce.number().int().positive().default(64000),
+  // Reasoning ("thinking") mode for the concierge. off | low | medium | high.
+  // Maps to DashScope's enable_thinking + thinking_budget on Qwen3 models.
+  QWEN_REASONING: z.enum(['off', 'low', 'medium', 'high']).default('off'),
 
   FIREBASE_SERVICE_ACCOUNT_JSON: z.string().optional(),
   FIREBASE_PROJECT_ID: z.string().optional(),
+
+  // Google Routes API key for outdoor (GPS → stadium) routing. Optional: without
+  // it the find_outdoor_route tool degrades gracefully instead of crashing.
+  GOOGLE_ROUTES_API_KEY: z.string().min(1).optional(),
 
   ADMIN_UIDS: z.string().default(''),
   // Demo/admin console credential. Store only in backend/.env or hosting secrets.

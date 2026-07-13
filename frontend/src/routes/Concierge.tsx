@@ -48,15 +48,17 @@ export default function Concierge() {
 
   // See if there's an outdoor route in the recent messages
   const lastOutdoorRouteResult = useMemo(() => {
-    // Find the last toolResult for findOutdoorRoute that was successful
+    // Find the last toolResult for find_outdoor_route that was successful
     for (let i = messages.length - 1; i >= 0; i--) {
       const msg = messages[i];
       if (msg?.tools) {
-        const routeTool = msg.tools.find(t => t.name === 'findOutdoorRoute' && t.ok && t.summary);
+        const routeTool = msg.tools.find(t => t.name === 'find_outdoor_route' && t.ok && t.summary);
         if (routeTool?.summary) {
           try {
-            // The summary might contain the raw JSON or just a string, let's extract polyline if we can
-            const match = routeTool.summary.match(/polyline:\s*([^,}\n]+)/);
+            // The polyline sits alone on its own line and contains no whitespace,
+            // but DOES contain `}`, `\`, and `,` — so capture all non-whitespace
+            // after the `polyline:` marker (a `[^,}]` class would truncate it).
+            const match = routeTool.summary.match(/polyline:\s*(\S+)/);
             if (match && match[1]) return match[1].trim();
             // Alternatively if it's full JSON
             const data = JSON.parse(routeTool.summary);
@@ -244,7 +246,14 @@ export default function Concierge() {
 
       {/* Map Column (Hidden on mobile unless requested, visible on md+) */}
       <div className="hidden flex-1 py-4 md:block">
-        <OutdoorMap userLocation={gps} encodedPolyline={lastOutdoorRouteResult} />
+        <OutdoorMap
+          userLocation={gps}
+          encodedPolyline={lastOutdoorRouteResult}
+          onSetLocation={(loc) => {
+            setGps(loc);
+            setGpsRequested(true);
+          }}
+        />
       </div>
     </div>
   );
