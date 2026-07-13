@@ -4,6 +4,7 @@ import { Wordmark } from '../components/brand/Logo.tsx';
 import { useConcierge } from '../features/concierge/useConcierge.ts';
 import { MessageBubble } from '../features/concierge/MessageBubble.tsx';
 import { SignReader } from '../features/accessibility/SignReader.tsx';
+import { LiveCaptionPanel } from '../features/accessibility/LiveCaptionPanel.tsx';
 import { OutdoorMap } from '../features/concierge/OutdoorMap.tsx';
 
 const LANGS = [
@@ -180,6 +181,10 @@ export default function Concierge() {
                     void send(`I saw a sign that says: ${desc}. What does this mean?`, lang);
                   }}
                 />
+              </div>
+
+              <div className="w-full">
+                <LiveCaptionPanel />
               </div>
             </div>
           ) : (

@@ -15,6 +15,7 @@ import { visionRouter } from './routes/vision.js';
 import { adminRouter } from './routes/admin.js';
 import { alertsRouter } from './routes/alerts.js';
 import { getCrowdSimulator } from './services/crowd/simulator.js';
+import { attachAsrWebSocket } from './services/audio/asr.js';
 
 const app = express();
 app.disable('x-powered-by');
@@ -85,7 +86,7 @@ app.use('*', (_req, res) => {
 app.use(errorHandler);
 
 const port = env.PORT;
-app.listen(port, () => {
+const server = app.listen(port, () => {
   logger.info(
     { port, env: env.NODE_ENV, allowedOrigins: env.allowedOrigins },
     `🏟  Concourse backend listening on :${port}`,
@@ -95,3 +96,7 @@ app.listen(port, () => {
     getCrowdSimulator().start();
   }
 });
+
+// Live speech-to-text bridge for the accessibility caption feature. Shares the
+// HTTP server so it rides the same port and CORS origin as the REST API.
+attachAsrWebSocket(server);
