@@ -38,7 +38,9 @@ export default defineConfig({
         // Cesium's runtime bundle is ~6MB. It is an optional, lazy-loaded 3D
         // enhancement — don't force every PWA install to precache it (Workbox's
         // default cap is 2MB). 2D navigation remains fully cacheable/offline.
-        globIgnores: ['**/cesium/**'],
+        // Likewise, the per-floor interior room polygons (stadium/space/*, ~7MB)
+        // only load when the 3D interior view opens — keep them out of precache.
+        globIgnores: ['**/cesium/**', '**/stadium/space/**'],
         runtimeCaching: [
           {
             urlPattern: /^\/api\/crowd\/.*\/heatmap/i,
