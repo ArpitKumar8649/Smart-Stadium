@@ -27,6 +27,8 @@ export interface RoomShape {
   id: string;
   name: string;
   hierarchies: PolygonHierarchy[];
+  /** [lng, lat] label/pin anchor from the source data, if present. */
+  center: [number, number] | null;
 }
 
 interface FloorProps {
@@ -38,6 +40,7 @@ interface FloorProps {
 interface SpaceProps {
   id: string;
   externalId?: string;
+  center?: [number, number];
   details?: { name?: string };
 }
 
@@ -93,10 +96,14 @@ export async function loadRooms(floorId: string, signal?: AbortSignal): Promise<
     .filter((f) => f.geometry && (f.geometry.type === 'Polygon' || f.geometry.type === 'MultiPolygon'))
     .map((f) => {
       const p = (f.properties ?? {}) as SpaceProps;
+      const center = Array.isArray(p.center) && p.center.length === 2
+        ? ([p.center[0], p.center[1]] as [number, number])
+        : null;
       return {
         id: p.id ?? p.externalId ?? Math.random().toString(36),
         name: p.details?.name ?? '',
         hierarchies: geometryToHierarchies(f.geometry as Geometry),
+        center,
       };
     })
     .filter((r) => r.hierarchies.length > 0);
@@ -108,10 +115,36 @@ export function floorHeights(elevation: number): { base: number; top: number } {
   return { base, top: base + SLAB_THICKNESS_M };
 }
 
-/** A calm blue→violet ramp so stacked levels read as distinct strata. */
+/** A cool light-grey ramp so stacked levels read as translucent glass strata —
+ *  barely tinted blue→violet by height, kept desaturated and light so the slabs
+ *  look like frosted glass rather than solid coloured blocks. */
 export function floorColor(elevation: number, total: number, alpha: number): Color {
   const t = total > 1 ? elevation / (total - 1) : 0;
-  // hue 210° (blue) → 265° (violet)
+  // hue 210° (blue) → 265° (violet), very low saturation, high lightness = greyish.
   const hue = (210 + t * 55) / 360;
-  return Color.fromHsl(hue, 0.65, 0.55, alpha);
+  return Color.fromHsl(hue, 0.12, 0.78, alpha);
 }
+
+/** Facility kinds we surface as 3D pins, matched from a room's name. */
+export type FacilityKind = 'restroom' | 'first_aid' | 'concession' | 'gate' | 'elevator';
+
+/** Classify a room by its real name → a facility kind (or null if it's not one). */
+export function matchFacility(name: string): FacilityKind | null {
+  const n = name.toLowerCase();
+  if (!n) return null;
+  if (/(restroom|washroom|toilet|bathroom|men'?s|women'?s|family room)/.test(n)) return 'restroom';
+  if (/(first aid|medical|aid station|aed)/.test(n)) return 'first_aid';
+  if (/(elevator|escalator|lift)/.test(n)) return 'elevator';
+  if (/(gate|entrance|entry)/.test(n)) return 'gate';
+  if (/(concession|food|bar|grill|kitchen|cafe|market|store|shop|beer)/.test(n)) return 'concession';
+  return null;
+}
+
+/** Emoji + colour for each facility kind (for 3D pins). */
+export const FACILITY_STYLE: Record<FacilityKind, { icon: string; color: string; label: string }> = {
+  restroom: { icon: '🚻', color: '#38bdf8', label: 'Restroom' },
+  first_aid: { icon: '➕', color: '#f87171', label: 'First aid' },
+  concession: { icon: '🍔', color: '#fbbf24', label: 'Food & retail' },
+  gate: { icon: '🚪', color: '#4ade80', label: 'Gate' },
+  elevator: { icon: '🛗', color: '#c084fc', label: 'Elevator' },
+};
