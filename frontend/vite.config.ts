@@ -1,10 +1,19 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
+import cesium from 'vite-plugin-cesium';
 
 export default defineConfig({
   plugins: [
     react(),
+    // npm workspaces hoists Cesium to the monorepo root. The plugin otherwise
+    // looks for frontend/node_modules/cesium (which does not exist), causing
+    // /cesium/Widgets/*.css and /cesium/Assets/*.json to fall through to the
+    // SPA HTML instead of their real MIME types.
+    cesium({
+      cesiumBuildRootPath: '../node_modules/cesium/Build',
+      cesiumBuildPath: '../node_modules/cesium/Build/Cesium/',
+    }),
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg', 'floor.geojson'],
@@ -26,6 +35,10 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,geojson}'],
+        // Cesium's runtime bundle is ~6MB. It is an optional, lazy-loaded 3D
+        // enhancement — don't force every PWA install to precache it (Workbox's
+        // default cap is 2MB). 2D navigation remains fully cacheable/offline.
+        globIgnores: ['**/cesium/**'],
         runtimeCaching: [
           {
             urlPattern: /^\/api\/crowd\/.*\/heatmap/i,

@@ -5,7 +5,7 @@ import { useConcierge } from '../features/concierge/useConcierge.ts';
 import { MessageBubble } from '../features/concierge/MessageBubble.tsx';
 import { SignReader } from '../features/accessibility/SignReader.tsx';
 import { LiveCaptionPanel } from '../features/accessibility/LiveCaptionPanel.tsx';
-import { OutdoorMap } from '../features/concierge/OutdoorMap.tsx';
+import { ConcourseMap } from '../features/concierge/ConcourseMap.tsx';
 
 const LANGS = [
   { code: 'en', label: 'English' },
@@ -251,7 +251,7 @@ export default function Concierge() {
 
       {/* Map Column (Hidden on mobile unless requested, visible on md+) */}
       <div className="hidden flex-1 py-4 md:block">
-        <OutdoorMap
+        <ConcourseMap
           userLocation={gps}
           encodedPolyline={lastOutdoorRouteResult}
           onSetLocation={(loc) => {
