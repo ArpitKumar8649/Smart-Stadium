@@ -93,14 +93,14 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Configure the Node.js App Service
-        uses: azure/appservice-settings@v1
-        with:
-          app-name: ${{ env.AZURE_WEBAPP_NAME }}
-          app-settings-json: >-
-            [{"name":"NODE_ENV","value":"production","slotSetting":false},{"name":"SCM_DO_BUILD_DURING_DEPLOYMENT","value":"false","slotSetting":false}]
-          general-settings-json: >-
-            {"alwaysOn":true,"webSocketsEnabled":true}
+      - name: Configure application settings
+        run: |
+          # Always On is unavailable on the current App Service plan. The API
+          # still runs normally; it may simply cold-start after a period idle.
+          az webapp config appsettings set \
+            --name "$AZURE_WEBAPP_NAME" \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --settings NODE_ENV=production SCM_DO_BUILD_DURING_DEPLOYMENT=false
 
       - name: Set the backend startup command
         run: |
