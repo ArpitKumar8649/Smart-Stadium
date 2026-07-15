@@ -2,6 +2,10 @@ import { Cartesian3, PolygonHierarchy, Color } from 'cesium';
 import type { Feature, FeatureCollection, Geometry, Polygon, MultiPolygon } from 'geojson';
 import { getCachedRoute, saveRouteToCache } from '../../lib/stadiumCache.ts';
 
+// Empty locally (Vite proxies /api); Firebase builds set this to the public
+// Azure Web App URL so 3D route requests reach the deployed backend.
+const API_BASE = import.meta.env.VITE_API_BASE ?? '';
+
 /**
  * Loads MetLife's real Mappedin floor + room geometry and converts it into
  * Cesium polygon hierarchies for 3D extrusion. The data is the same export the
@@ -209,7 +213,7 @@ export async function routeToSection(
   };
 
   try {
-    const res = await fetch('/api/navigation/route', {
+    const res = await fetch(`${API_BASE}/api/navigation/route`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ from_label: fromLabel, to_label: toLabel, mode }),

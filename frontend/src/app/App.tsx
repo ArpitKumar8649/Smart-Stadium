@@ -11,7 +11,7 @@ import { A11yProvider } from '../features/accessibility/A11yContext.tsx';
 import { OfflineBanner } from '../components/layout/OfflineBanner.tsx';
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? '';
-const DEMO_TOKEN = import.meta.env.VITE_ADMIN_DEMO_TOKEN ?? 'concourse-local-admin-2026';
+const DEMO_TOKEN = import.meta.env.VITE_ADMIN_DEMO_TOKEN || 'concourse-local-admin-2026';
 
 function DemoModeManager() {
   const [searchParams] = useSearchParams();

@@ -1,0 +1,65 @@
+name: Deploy frontend to Firebase Hosting
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'frontend/**'
+      - 'shared/**'
+      - 'public/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'firebase.json'
+      - '.github/workflows/deploy-frontend-firebase.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: firebase-frontend-production
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: 22.x
+
+jobs:
+  build-and-deploy:
+    # Keep the first repository push safe: configure the Firebase project and
+    # public Azure API URL in GitHub before this job can run.
+    if: >-
+      vars.FIREBASE_PROJECT_ID != '' &&
+      vars.VITE_API_BASE != ''
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build the production frontend
+        env:
+          # Vite embeds VITE_* values in the browser bundle. These must be
+          # public values, never server credentials or private API keys.
+          VITE_API_BASE: ${{ vars.VITE_API_BASE }}
+          VITE_ADMIN_DEMO_TOKEN: ${{ vars.VITE_ADMIN_DEMO_TOKEN }}
+          VITE_CESIUM_ION_TOKEN: ${{ vars.VITE_CESIUM_ION_TOKEN }}
+        run: |
+          npm run build --workspace=shared
+          npm run build --workspace=frontend
+
+      - name: Deploy to Firebase Hosting live channel
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          projectId: ${{ vars.FIREBASE_PROJECT_ID }}
+          channelId: live
+          entryPoint: .

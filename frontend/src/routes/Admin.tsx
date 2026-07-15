@@ -9,7 +9,7 @@ import type { Briefing, BriefingConcern, BriefingRecommendation } from '@concour
 const API_BASE = import.meta.env.VITE_API_BASE ?? '';
 
 // Simple passcode gate (falls back to env var if deployed, otherwise hardcoded demo)
-const DEMO_TOKEN = import.meta.env.VITE_ADMIN_DEMO_TOKEN ?? 'concourse-local-admin-2026';
+const DEMO_TOKEN = import.meta.env.VITE_ADMIN_DEMO_TOKEN || 'concourse-local-admin-2026';
 
 type CrowdResponse = { phase: string; sim_minute: number; zones: CrowdMapZone[] };
 
