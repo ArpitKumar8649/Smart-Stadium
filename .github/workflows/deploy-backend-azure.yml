@@ -23,9 +23,9 @@ concurrency:
 env:
   AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
   AZURE_WEBAPP_NAME: ${{ vars.AZURE_WEBAPP_NAME }}
-  # The repository supports Node 20 (>=20.11.0 and <21). Keep this on the
-  # current Node 20 release rather than pinning an old patch version.
-  NODE_VERSION: 20.x
+  # Azure's current Linux runtime offers Node 22 LTS. The project supports it
+  # and uses this same major version while building the deployment artifact.
+  NODE_VERSION: 22.x
 
 jobs:
   build:

@@ -18,12 +18,12 @@ In the Azure portal, create these resources in the same region:
    a larger tier only after load testing.
 3. A Web App on that plan:
    - Publish: **Code** (not Docker Container)
-   - Runtime stack: **Node 20 LTS**
+   - Runtime stack: **Node 22 LTS**
    - Operating system: **Linux**
    - Name: a globally unique API name, for example `concourse-api-yourname`
 
-The project declares Node 20 compatibility (`>=20.11.0 <21`), so do not select
-Node 24 for this Web App.
+The project supports Node 20 through 22 (`>=20.11.0 <23`). Select Node 22 LTS,
+not Node 24, so the Azure runtime matches the GitHub Actions build.
 
 ## 2. Configure Web App environment variables
 

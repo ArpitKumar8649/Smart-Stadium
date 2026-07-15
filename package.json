@@ -10,7 +10,7 @@
     "frontend"
   ],
   "engines": {
-    "node": ">=20.11.0 <21"
+    "node": ">=20.11.0 <23"
   },
   "scripts": {
     "dev": "concurrently -n backend,frontend -c cyan,magenta \"npm run dev -w backend\" \"npm run dev -w frontend\"",
