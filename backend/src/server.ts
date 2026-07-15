@@ -88,10 +88,13 @@ app.use('*', (_req, res) => {
 app.use(errorHandler);
 
 const port = env.PORT;
-const server = app.listen(port, () => {
+// Bind to all interfaces so App Service (and Docker locally) can reach the
+// process through the container/network boundary.
+const host = '0.0.0.0';
+const server = app.listen(port, host, () => {
   logger.info(
-    { port, env: env.NODE_ENV, allowedOrigins: env.allowedOrigins },
-    `🏟  Concourse backend listening on :${port}`,
+    { host, port, env: env.NODE_ENV, allowedOrigins: env.allowedOrigins },
+    `🏟  Concourse backend listening on ${host}:${port}`,
   );
   // Boot the crowd simulator so /api/crowd and the low_crowd routing mode are live.
   if (env.CROWD_SIM_ENABLED) {

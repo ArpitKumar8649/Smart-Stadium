@@ -1,5 +1,6 @@
 import { Cartesian3, PolygonHierarchy, Color } from 'cesium';
 import type { Feature, FeatureCollection, Geometry, Polygon, MultiPolygon } from 'geojson';
+import { getCachedRoute, saveRouteToCache } from '../../lib/stadiumCache.ts';
 
 /**
  * Loads MetLife's real Mappedin floor + room geometry and converts it into
@@ -196,18 +197,34 @@ export async function routeToSection(
   stepFree: boolean,
   signal?: AbortSignal,
 ): Promise<RoutePoint[] | null> {
-  const res = await fetch('/api/navigation/route', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ from_label: fromLabel, to_label: toLabel, mode: stepFree ? 'step_free' : 'fastest' }),
-    ...(signal ? { signal } : {}),
-  });
-  if (!res.ok) return null;
-  const data = (await res.json()) as {
+  const mode = stepFree ? 'step_free' : 'fastest';
+  const cacheKey = { fromLabel, toLabel, mode };
+  type RouteResponse = {
     points?: { coords: [number, number]; level: number; label: string }[];
   };
-  if (!data.points || data.points.length < 2) return null;
-  return data.points.map((p) => ({ coords: p.coords, level: p.level, label: p.label }));
+
+  const asRoutePoints = (data: RouteResponse): RoutePoint[] | null => {
+    if (!data.points || data.points.length < 2) return null;
+    return data.points.map((p) => ({ coords: p.coords, level: p.level, label: p.label }));
+  };
+
+  try {
+    const res = await fetch('/api/navigation/route', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ from_label: fromLabel, to_label: toLabel, mode }),
+      ...(signal ? { signal } : {}),
+    });
+    if (!res.ok) throw new Error(`navigation route ${res.status}`);
+    const data = (await res.json()) as RouteResponse;
+    const points = asRoutePoints(data);
+    if (points) void saveRouteToCache(cacheKey, data);
+    return points;
+  } catch {
+    if (signal?.aborted) return null;
+    const cached = await getCachedRoute<RouteResponse>(cacheKey);
+    return cached ? asRoutePoints(cached) : null;
+  }
 }
 
 /** Vertical circulation types we render as columns through the floor stack. */

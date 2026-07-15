@@ -10,6 +10,7 @@ export default tseslint.config(
       '**/node_modules/**',
       'data/**',
       'stadium/**',
+      'frontend/public/basis/**',
       '**/*.config.js',
       '**/*.config.ts',
       'eslint.config.js',

@@ -1,6 +1,7 @@
-import { useRef, useEffect, useState, Suspense } from 'react';
-import { Canvas, useFrame } from '@react-three/fiber';
+import { useCallback, useEffect, useMemo, useRef, useState, Suspense, type RefObject } from 'react';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { useGLTF, Environment, ContactShadows } from '@react-three/drei';
+import { KTX2Loader, type GLTFLoader } from 'three-stdlib';
 
 /* ─────────────────────────────────────────────────────────
  *  TrophyScene
@@ -14,10 +15,55 @@ import { useGLTF, Environment, ContactShadows } from '@react-three/drei';
 
 // ── Continuous typing loop hook ───────────────────────────
 
-function useTypingLoop(text: string, typeSpeed = 150, eraseSpeed = 80, pauseAfterType = 1500, pauseAfterErase = 500) {
+const TROPHY_MODEL_URL = '/trophy.optimized.glb';
+
+function useTrophyActive(containerRef: RefObject<HTMLDivElement>): boolean {
+  const [inViewport, setInViewport] = useState(false);
+  const [pageVisible, setPageVisible] = useState(() =>
+    typeof document === 'undefined' || !document.hidden,
+  );
+
+  useEffect(() => {
+    const node = containerRef.current;
+    if (!node) return undefined;
+
+    if (!('IntersectionObserver' in window)) {
+      setInViewport(true);
+      return undefined;
+    }
+
+    const observer = new IntersectionObserver(
+      ([entry]) => setInViewport(Boolean(entry?.isIntersecting)),
+      // Start loading just before the section enters view, without rendering it
+      // while it is far away from the user.
+      { rootMargin: '120px 0px' },
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [containerRef]);
+
+  useEffect(() => {
+    const syncPageVisibility = () => setPageVisible(!document.hidden);
+    document.addEventListener('visibilitychange', syncPageVisibility);
+    return () => document.removeEventListener('visibilitychange', syncPageVisibility);
+  }, []);
+
+  return inViewport && pageVisible;
+}
+
+function useTypingLoop(
+  text: string,
+  active: boolean,
+  typeSpeed = 150,
+  eraseSpeed = 80,
+  pauseAfterType = 1500,
+  pauseAfterErase = 500,
+) {
   const [displayed, setDisplayed] = useState('');
 
   useEffect(() => {
+    if (!active) return undefined;
+
     let cancelled = false;
     let timeout: ReturnType<typeof setTimeout>;
 
@@ -58,7 +104,7 @@ function useTypingLoop(text: string, typeSpeed = 150, eraseSpeed = 80, pauseAfte
       cancelled = true;
       clearTimeout(timeout);
     };
-  }, [text, typeSpeed, eraseSpeed, pauseAfterType, pauseAfterErase]);
+  }, [text, active, typeSpeed, eraseSpeed, pauseAfterType, pauseAfterErase]);
 
   return displayed;
 }
@@ -66,9 +112,25 @@ function useTypingLoop(text: string, typeSpeed = 150, eraseSpeed = 80, pauseAfte
 // ── Inner 3D model component ─────────────────────────────
 
 function TrophyModel() {
-  const { scene } = useGLTF('/trophy.glb');
+  const gl = useThree((state) => state.gl);
+  const ktx2Loader = useMemo(
+    () => new KTX2Loader().setTranscoderPath('/basis/').setWorkerLimit(1).detectSupport(gl),
+    [gl],
+  );
+  const extendLoader = useCallback(
+    (loader: GLTFLoader) => loader.setKTX2Loader(ktx2Loader),
+    [ktx2Loader],
+  );
+  const { scene } = useGLTF(TROPHY_MODEL_URL, false, true, extendLoader);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const groupRef = useRef<any>(null);
+
+  useEffect(
+    () => () => {
+      ktx2Loader.dispose();
+    },
+    [ktx2Loader],
+  );
 
   useFrame((_, delta) => {
     if (!groupRef.current) return;
@@ -88,7 +150,8 @@ function TrophyModel() {
 
 export default function TrophyScene() {
   const containerRef = useRef<HTMLDivElement>(null);
-  const displayed = useTypingLoop('FIFA WORLD CUP 2026', 150, 80, 1500, 500);
+  const active = useTrophyActive(containerRef);
+  const displayed = useTypingLoop('FIFA WORLD CUP 2026', active, 150, 80, 1500, 500);
 
   return (
     <div
@@ -114,32 +177,32 @@ export default function TrophyScene() {
       {/* Ambient glow behind the trophy */}
       <div className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 h-72 w-72 rounded-full bg-accent-600/25 blur-[120px]" />
 
-      {/* 3D Canvas */}
-      <Canvas
-        camera={{ position: [0, 2.5, 6], fov: 40 }}
-        gl={{ antialias: true, alpha: true }}
-        style={{ background: 'transparent' }}
-      >
-        <ambientLight intensity={0.6} />
-        <directionalLight position={[5, 8, 5]} intensity={1.2} castShadow />
-        <directionalLight position={[-3, 4, -2]} intensity={0.4} />
-        <pointLight position={[0, 3, 0]} intensity={0.8} color="#FFC300" />
+      {/* The canvas only exists while this section and browser tab are visible.
+          Navigating away or backgrounding the phone releases its render loop. */}
+      {active && (
+        <Canvas
+          camera={{ position: [0, 2.5, 6], fov: 40 }}
+          gl={{ antialias: true, alpha: true }}
+          style={{ background: 'transparent' }}
+        >
+          <ambientLight intensity={0.6} />
+          <directionalLight position={[5, 8, 5]} intensity={1.2} castShadow />
+          <directionalLight position={[-3, 4, -2]} intensity={0.4} />
+          <pointLight position={[0, 3, 0]} intensity={0.8} color="#FFC300" />
 
-        <Suspense fallback={null}>
-          <TrophyModel />
-          <ContactShadows
-            position={[0, 0, 0]}
-            opacity={0.5}
-            scale={8}
-            blur={2}
-            far={4}
-          />
-          <Environment preset="city" />
-        </Suspense>
-      </Canvas>
+          <Suspense fallback={null}>
+            <TrophyModel />
+            <ContactShadows
+              position={[0, 0, 0]}
+              opacity={0.5}
+              scale={8}
+              blur={2}
+              far={4}
+            />
+            <Environment preset="city" />
+          </Suspense>
+        </Canvas>
+      )}
     </div>
   );
 }
-
-// Pre-load the GLB so it's cached when the component mounts
-useGLTF.preload('/trophy.glb');

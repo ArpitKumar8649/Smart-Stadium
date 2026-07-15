@@ -16,7 +16,14 @@ export default defineConfig({
     }),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.svg', 'floor.geojson'],
+      includeAssets: [
+        'favicon.svg',
+        'floor.geojson',
+        'stadium/floor.geojson',
+        'stadium/floorstack.json',
+        'stadium/sections.json',
+        'stadium/connections.json',
+      ],
       manifest: {
         name: 'Concourse Smart Stadium',
         short_name: 'Concourse',
@@ -34,14 +41,40 @@ export default defineConfig({
         ],
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,svg,geojson}'],
+        globPatterns: ['**/*.{js,css,html,svg,geojson,json,wasm}'],
         // Cesium's runtime bundle is ~6MB. It is an optional, lazy-loaded 3D
         // enhancement — don't force every PWA install to precache it (Workbox's
         // default cap is 2MB). 2D navigation remains fully cacheable/offline.
         // Likewise, the per-floor interior room polygons (stadium/space/*, ~7MB)
         // only load when the 3D interior view opens — keep them out of precache.
-        globIgnores: ['**/cesium/**', '**/stadium/space/**'],
+        globIgnores: ['**/cesium/**', '**/stadium/space/**', '**/basis/**'],
         runtimeCaching: [
+          {
+            // Small, common map data is warmed from Landing and served without
+            // another request when the fan opens the tactical map.
+            urlPattern: /^\/(?:floor\.geojson|stadium\/(?:floor\.geojson|floorstack\.json|sections\.json|connections\.json))$/i,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'concourse-stadium-assets-v1',
+              expiration: {
+                maxEntries: 10,
+                maxAgeSeconds: 60 * 60 * 24 * 30,
+              },
+            },
+          },
+          {
+            // Floor-specific room polygons stay lazy, then remain available
+            // for a later 3D visit without precaching all ~7 MB up front.
+            urlPattern: /^\/stadium\/space\/.*\.geojson$/i,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'stadium-room-geometry',
+              expiration: {
+                maxEntries: 12,
+                maxAgeSeconds: 60 * 60 * 24 * 30,
+              },
+            },
+          },
           {
             urlPattern: /^\/api\/crowd\/.*\/heatmap/i,
             handler: 'NetworkFirst',
@@ -53,24 +86,13 @@ export default defineConfig({
               },
             },
           },
-          {
-            urlPattern: /^\/api\/navigation\/.*/i,
-            handler: 'NetworkFirst',
-            options: {
-              cacheName: 'navigation-routes',
-              expiration: {
-                maxEntries: 20,
-                maxAgeSeconds: 60 * 60 * 24, // Cache routes for a day
-              },
-            },
-          },
         ],
       },
     }),
   ],
   server: {
     port: 5173,
-    host: true,
+    host: '127.0.0.1',
     proxy: {
       '/api': {
         target: 'http://localhost:8080',

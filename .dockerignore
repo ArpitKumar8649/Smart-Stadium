@@ -1,0 +1,23 @@
+# Keep the Azure Container Registry build context small and prevent local
+# credentials or generated artifacts from entering the backend image.
+.git
+.github
+.agents
+.codex
+node_modules
+**/node_modules
+dist
+**/dist
+coverage
+*.log
+.env
+.env.*
+**/.env
+**/.env.*
+*.pem
+*.key
+service-account*.json
+firebase-adminsdk*.json
+Fork_session_conversation_history.txt
+frontend/**
+!frontend/package.json

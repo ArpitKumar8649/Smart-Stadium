@@ -36,6 +36,9 @@ pnpm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
+# local Codex/agent transcript — never part of the application
+Fork_session_conversation_history.txt
+
 # antigravity working state (keep brain + rules; drop scratch)
 .gemini/antigravity/plans/
 .gemini/antigravity/cache/

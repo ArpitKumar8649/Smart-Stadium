@@ -10,6 +10,7 @@ import { densityColor, densityLabel } from '../features/navigate/crowdStyle.ts';
 import { useAlerts } from '../features/alerts/AlertContext.tsx';
 import { useA11y } from '../features/accessibility/A11yContext.tsx';
 import { A11yTogglePanel } from '../features/accessibility/A11yTogglePanel.tsx';
+import { getCachedRoute, saveRouteToCache } from '../lib/stadiumCache.ts';
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? '';
 
@@ -65,6 +66,7 @@ export default function Navigate() {
   const [activeFloor, setActiveFloor] = useState(1);
   const [forecast, setForecast] = useState<ForecastOffset>(0);
   const [route, setRoute] = useState<RouteResponse | null>(null);
+  const [routeFromCache, setRouteFromCache] = useState(false);
   const [crowd, setCrowd] = useState<CrowdResponse | null>(null);
   const [selectedZone, setSelectedZone] = useState<CrowdMapZone | null>(null);
   const [loadingRoute, setLoadingRoute] = useState(false);
@@ -91,8 +93,10 @@ export default function Navigate() {
 
   const planRoute = useCallback(async () => {
     if (!fromLabel.trim() || !toLabel.trim()) return;
+    const cacheKey = { fromLabel, toLabel, mode };
     setLoadingRoute(true);
     setError(null);
+    setRouteFromCache(false);
     try {
       const response = await fetch(`${API_BASE}/api/navigation/route`, {
         method: 'POST',
@@ -105,9 +109,17 @@ export default function Navigate() {
       }
       setRoute(body);
       setActiveFloor(body.from.level);
+      void saveRouteToCache(cacheKey, body);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Could not calculate that route.');
-      setRoute(null);
+      const cached = await getCachedRoute<RouteResponse>(cacheKey);
+      if (cached) {
+        setRoute(cached);
+        setActiveFloor(cached.from.level);
+        setRouteFromCache(true);
+      } else {
+        setError(caught instanceof Error ? caught.message : 'Could not calculate that route.');
+        setRoute(null);
+      }
     } finally {
       setLoadingRoute(false);
     }
@@ -334,6 +346,9 @@ export default function Navigate() {
                   <div className="mt-3 rounded-lg border border-amber-700/60 bg-amber-950/30 p-2.5 text-xs text-amber-200">
                     {route.warnings[0]}
                   </div>
+                )}
+                {routeFromCache && (
+                  <p className="mt-3 text-xs text-amber-200">Showing your saved route while live routing reconnects.</p>
                 )}
                 <ol className="mt-4 max-h-48 space-y-2 overflow-y-auto border-s border-surface-700 ps-3 text-xs text-surface-300">
                   {route.steps.slice(0, 12).map((step, index) => (

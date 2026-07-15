@@ -1,8 +1,46 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Wordmark } from '../components/brand/Logo.tsx';
-import TrophyScene from '../components/trophy/TrophyScene.tsx';
 import { LimelightNav, type NavItem } from '../components/ui/LimelightNav.tsx';
+import { scheduleStadiumMapCacheWarmup } from '../lib/stadiumCache.ts';
+
+const TrophyScene = React.lazy(() => import('../components/trophy/TrophyScene.tsx'));
+
+function DeferredTrophyScene() {
+  const sectionRef = React.useRef<HTMLDivElement>(null);
+  const [shouldLoad, setShouldLoad] = React.useState(false);
+
+  React.useEffect(() => {
+    const node = sectionRef.current;
+    if (!node || shouldLoad) return undefined;
+
+    if (!('IntersectionObserver' in window)) {
+      setShouldLoad(true);
+      return undefined;
+    }
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry?.isIntersecting) return;
+        setShouldLoad(true);
+        observer.disconnect();
+      },
+      { rootMargin: '160px 0px' },
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [shouldLoad]);
+
+  return (
+    <div ref={sectionRef} className="min-h-[500px]">
+      {shouldLoad && (
+        <React.Suspense fallback={<div className="h-[500px]" aria-hidden="true" />}>
+          <TrophyScene />
+        </React.Suspense>
+      )}
+    </div>
+  );
+}
 
 // Header destination glyphs: concierge chat, tactical map, staff shield.
 const ChatIcon = (props: React.SVGProps<SVGSVGElement>) => (
@@ -50,6 +88,9 @@ const FEATURES = [
 
 export default function Landing() {
   const navigate = useNavigate();
+
+  React.useEffect(() => scheduleStadiumMapCacheWarmup(), []);
+
   const navItems: NavItem[] = [
     { id: 'concierge', icon: <ChatIcon />, label: 'Concierge', onClick: () => navigate('/concierge') },
     { id: 'navigate', icon: <MapPinIcon />, label: 'Tactical map', onClick: () => navigate('/navigate') },
@@ -124,7 +165,7 @@ export default function Landing() {
 
         {/* 3D Trophy with typing text */}
         <section className="mt-8">
-          <TrophyScene />
+          <DeferredTrophyScene />
         </section>
 
         {/* Features Grid */}

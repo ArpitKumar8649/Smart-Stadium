@@ -1,0 +1,86 @@
+name: Deploy backend to Azure App Service
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'backend/**'
+      - 'shared/**'
+      - 'data/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'frontend/package.json'
+      - '.dockerignore'
+      - '.github/workflows/deploy-backend-azure.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: azure-backend-production
+  cancel-in-progress: true
+
+env:
+  AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+  AZURE_WEBAPP_NAME: ${{ vars.AZURE_WEBAPP_NAME }}
+  AZURE_ACR_NAME: ${{ vars.AZURE_ACR_NAME }}
+  IMAGE_NAME: concourse-backend
+
+jobs:
+  build-and-deploy:
+    # Keeps the initial repository push safe: the job is skipped until the
+    # non-secret Azure resource variables are configured in GitHub.
+    if: >-
+      vars.AZURE_RESOURCE_GROUP != '' &&
+      vars.AZURE_WEBAPP_NAME != '' &&
+      vars.AZURE_ACR_NAME != ''
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Sign in to Azure using OpenID Connect
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Build and push immutable backend image
+        run: |
+          az acr build \
+            --registry "$AZURE_ACR_NAME" \
+            --image "$IMAGE_NAME:${GITHUB_SHA}" \
+            --file backend/Dockerfile \
+            .
+
+      - name: Point App Service at the new image
+        run: |
+          ACR_LOGIN_SERVER="$(az acr show \
+            --name "$AZURE_ACR_NAME" \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --query loginServer \
+            --output tsv)"
+          IMAGE="${ACR_LOGIN_SERVER}/${IMAGE_NAME}:${GITHUB_SHA}"
+
+          az webapp config appsettings set \
+            --name "$AZURE_WEBAPP_NAME" \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --settings WEBSITES_PORT=8080 NODE_ENV=production
+
+          az webapp config set \
+            --name "$AZURE_WEBAPP_NAME" \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --generic-configurations '{"acrUseManagedIdentityCreds": true}'
+
+          az webapp config container set \
+            --name "$AZURE_WEBAPP_NAME" \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --container-image-name "$IMAGE"
+
+          az webapp restart \
+            --name "$AZURE_WEBAPP_NAME" \
+            --resource-group "$AZURE_RESOURCE_GROUP"

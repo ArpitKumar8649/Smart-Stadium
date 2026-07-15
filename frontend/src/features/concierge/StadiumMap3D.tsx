@@ -9,6 +9,7 @@ import {
   HeightReference,
   PolygonHierarchy,
   PolylineGlowMaterialProperty,
+  PolylineDashMaterialProperty,
   type Viewer as CesiumViewer,
 } from 'cesium';
 import {
@@ -17,6 +18,8 @@ import {
   Entity,
   PolylineGraphics,
   PolygonGraphics,
+  CylinderGraphics,
+  PointGraphics,
   CameraFlyTo,
   type CesiumComponentRef,
 } from 'resium';
@@ -76,6 +79,97 @@ interface SelectedRoom {
   floorName: string;
 }
 
+interface CesiumPerformanceProfile {
+  isHandset: boolean;
+  resolutionScale: number;
+  maximumScreenSpaceError: number;
+  targetFrameRate: number;
+  tileCacheBytes: number;
+}
+
+interface DeviceNavigator extends Navigator {
+  deviceMemory?: number;
+}
+
+function getCesiumPerformanceProfile(): CesiumPerformanceProfile {
+  if (typeof window === 'undefined') {
+    return {
+      isHandset: false,
+      resolutionScale: 1,
+      maximumScreenSpaceError: 16,
+      targetFrameRate: 60,
+      tileCacheBytes: 256 * 1024 * 1024,
+    };
+  }
+
+  const navigatorWithMemory = navigator as DeviceNavigator;
+  const isHandset = window.matchMedia('(pointer: coarse)').matches || window.innerWidth < 900;
+  const lowPower =
+    (navigatorWithMemory.deviceMemory !== undefined && navigatorWithMemory.deviceMemory <= 4) ||
+    (navigator.hardwareConcurrency !== undefined && navigator.hardwareConcurrency <= 4);
+
+  if (isHandset && lowPower) {
+    return {
+      isHandset: true,
+      resolutionScale: 0.65,
+      maximumScreenSpaceError: 38,
+      targetFrameRate: 30,
+      tileCacheBytes: 64 * 1024 * 1024,
+    };
+  }
+
+  if (isHandset) {
+    return {
+      isHandset: true,
+      resolutionScale: 0.8,
+      maximumScreenSpaceError: 26,
+      targetFrameRate: 30,
+      tileCacheBytes: 96 * 1024 * 1024,
+    };
+  }
+
+  return {
+    isHandset: false,
+    resolutionScale: 1,
+    maximumScreenSpaceError: 16,
+    targetFrameRate: 60,
+    tileCacheBytes: 256 * 1024 * 1024,
+  };
+}
+
+function useCesiumPerformanceProfile(): CesiumPerformanceProfile {
+  const [profile, setProfile] = useState(getCesiumPerformanceProfile);
+
+  useEffect(() => {
+    const update = () => setProfile(getCesiumPerformanceProfile());
+    const coarsePointer = window.matchMedia('(pointer: coarse)');
+    window.addEventListener('resize', update);
+    window.addEventListener('orientationchange', update);
+    coarsePointer.addEventListener('change', update);
+    return () => {
+      window.removeEventListener('resize', update);
+      window.removeEventListener('orientationchange', update);
+      coarsePointer.removeEventListener('change', update);
+    };
+  }, []);
+
+  return profile;
+}
+
+function usePageVisible(): boolean {
+  const [pageVisible, setPageVisible] = useState(
+    () => typeof document === 'undefined' || !document.hidden,
+  );
+
+  useEffect(() => {
+    const update = () => setPageVisible(!document.hidden);
+    document.addEventListener('visibilitychange', update);
+    return () => document.removeEventListener('visibilitychange', update);
+  }, []);
+
+  return pageVisible;
+}
+
 /**
  * 3D stadium view — Resium (declarative CesiumJS).
  *
@@ -90,6 +184,8 @@ interface SelectedRoom {
  * Both modes share the same `userLocation` + route polyline as the 2D map.
  */
 export const StadiumMap3D: React.FC<StadiumMap3DProps> = ({ userLocation, encodedPolyline, focusSection }) => {
+  const performanceProfile = useCesiumPerformanceProfile();
+  const pageVisible = usePageVisible();
   const [errored, setErrored] = useState<string | null>(null);
   const [mode, setMode] = useState<ViewMode>('photo');
   const [floors, setFloors] = useState<FloorInfo[]>([]);
@@ -264,6 +360,7 @@ export const StadiumMap3D: React.FC<StadiumMap3DProps> = ({ userLocation, encode
       if (scene.skyBox) scene.skyBox.show = true;
       if (scene.skyAtmosphere) scene.skyAtmosphere.show = true;
     }
+    scene.requestRender();
     // `activeSection` intentionally omitted from deps: we only want stack-framing
     // on a genuine mode switch, not every time the highlighted section changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -285,6 +382,7 @@ export const StadiumMap3D: React.FC<StadiumMap3DProps> = ({ userLocation, encode
       orientation: { heading: CesiumMath.toRadians(0), pitch: CesiumMath.toRadians(-42), roll: 0 },
       duration: 1.8,
     });
+    viewer.scene.requestRender();
   }, [mode, activeSectionObj]);
 
   // Decode the Google Routes polyline (lat,lng pairs) into Cesium positions.
@@ -357,39 +455,70 @@ export const StadiumMap3D: React.FC<StadiumMap3DProps> = ({ userLocation, encode
   }, [query, sections]);
 
   // Visible vertical connections → drawable columns. A connection shows when
-  // its kind is enabled (and, in accessible-only mode, when it's step-free).
-  // Each becomes a vertical polyline from its lowest to highest stop, plus a
-  // labelled cap at the top for a pin.
+  // its kind is enabled, passes the accessible-only filter, and — when a
+  // specific floor is selected — actually stops at that floor. "All levels"
+  // (selectedElevation === null) shows every enabled connection.
+  //
+  // Each is drawn through its REAL per-floor stops (no averaging): an elevator
+  // rises straight (stacked stops), while an escalator/ramp travels
+  // horizontally as it climbs, so its line reads as a true diagonal. We also
+  // expose every stop (for per-floor discs) and the stop on the selected floor
+  // (emphasised + labelled so a fan knows exactly where to board on their level).
   const connectionColumns = useMemo(() => {
     if (connections.length === 0) return [];
     return connections
       .filter((c) => connFilter[c.type] && (!accessibleOnly || c.accessible))
+      .filter(
+        (c) =>
+          selectedElevation === null ||
+          c.points.some((p) => p.elevation === selectedElevation),
+      )
       .flatMap((c) => {
         const stops = [...c.points].sort((a, b) => a.elevation - b.elevation);
         if (stops.length < 2) return [];
-        const lo = stops[0];
         const hi = stops[stops.length - 1];
-        if (!lo || !hi) return [];
-        // Draw the shaft at the mean lng/lat so slight per-floor drift reads as
-        // one straight column; span from the bottom stop's base to the top's top.
-        const meanLng = stops.reduce((s, p) => s + p.coords[0], 0) / stops.length;
-        const meanLat = stops.reduce((s, p) => s + p.coords[1], 0) / stops.length;
-        const base = floorHeights(lo.elevation).base;
-        const top = floorHeights(hi.elevation).top;
+        const lo = stops[0];
+        if (!hi || !lo) return [];
         const style = CONNECTION_STYLE[c.type];
+        // One vertex per real stop, each at its own [lng, lat] + floor height.
+        const coords = stops.flatMap((p) => [
+          p.coords[0],
+          p.coords[1],
+          floorHeights(p.elevation).base + 1,
+        ]);
+        const color = Color.fromCssColorString(style.color);
+        // Per-floor stop discs, with the selected floor's stop flagged.
+        const stopDiscs = stops.map((p) => ({
+          id: `${c.id}-${p.elevation}`,
+          position: Cartesian3.fromDegrees(p.coords[0], p.coords[1], floorHeights(p.elevation).base + 1),
+          onSelectedFloor: p.elevation === selectedElevation,
+        }));
+        // Elevator shaft: a slim translucent cylinder at the lowest stop's exact
+        // coords, spanning its true vertical extent (elevators barely drift).
+        const shaftBase = floorHeights(lo.elevation).base;
+        const shaftTop = floorHeights(hi.elevation).top;
+        const shaftLength = Math.max(shaftTop - shaftBase, 1);
         return [{
           id: c.id,
           name: c.name,
           type: c.type,
           accessible: c.accessible,
-          color: style.color,
+          color,
+          colorCss: style.color,
           icon: style.icon,
           label: style.label,
-          positions: Cartesian3.fromDegreesArrayHeights([meanLng, meanLat, base, meanLng, meanLat, top]),
-          topPosition: Cartesian3.fromDegrees(meanLng, meanLat, top + 4),
+          positions: Cartesian3.fromDegreesArrayHeights(coords),
+          stopDiscs,
+          shaftCenter: Cartesian3.fromDegrees(lo.coords[0], lo.coords[1], shaftBase + shaftLength / 2),
+          shaftLength,
+          // Label caps the highest real stop, not an averaged point.
+          topPosition: Cartesian3.fromDegrees(hi.coords[0], hi.coords[1], floorHeights(hi.elevation).top + 4),
         }];
       });
-  }, [connections, connFilter, accessibleOnly]);
+  }, [connections, connFilter, accessibleOnly, selectedElevation]);
+
+  // Live count of currently-visible connections (drives the legend badge).
+  const visibleConnCount = connectionColumns.length;
 
   // Camera target: the fan's location if known, otherwise the stadium.
   const focus = userLocation ?? METLIFE;
@@ -398,6 +527,32 @@ export const StadiumMap3D: React.FC<StadiumMap3DProps> = ({ userLocation, encode
     { id: 'photo', icon: <GlobeIcon />, label: 'Photorealistic' },
     { id: 'structure', icon: <LayersIcon />, label: 'Structure' },
   ];
+  const showTiles = mode === 'photo';
+
+  // Request-render mode means React/Cesium state changes must explicitly ask
+  // for a frame. This makes static 3D views idle instead of continuously
+  // consuming the phone GPU between interactions.
+  useEffect(() => {
+    if (!pageVisible) return;
+    const viewer = viewerRef.current?.cesiumElement;
+    if (!viewer || viewer.isDestroyed()) return;
+    viewer.scene.requestRender();
+  }, [
+    pageVisible,
+    performanceProfile.resolutionScale,
+    performanceProfile.maximumScreenSpaceError,
+    performanceProfile.tileCacheBytes,
+    mode,
+    floors,
+    selectedFloor,
+    rooms,
+    activeSection,
+    routePositions,
+    routePositions3D,
+    connectionColumns,
+    facilityPins,
+    userLocation,
+  ]);
 
   if (!ION_TOKEN) {
     return (
@@ -426,8 +581,6 @@ export const StadiumMap3D: React.FC<StadiumMap3DProps> = ({ userLocation, encode
     );
   }
 
-  const showTiles = mode === 'photo';
-
   return (
     <div className="relative h-full w-full" style={{ minHeight: '300px' }}>
       <Viewer
@@ -446,11 +599,29 @@ export const StadiumMap3D: React.FC<StadiumMap3DProps> = ({ userLocation, encode
         fullscreenButton={false}
         infoBox={false}
         selectionIndicator={false}
+        scene3DOnly
+        requestRenderMode
+        maximumRenderTimeChange={Infinity}
+        // Turn Cesium's main render loop off while the browser tab is hidden.
+        useDefaultRenderLoop={pageVisible}
+        resolutionScale={performanceProfile.resolutionScale}
+        useBrowserRecommendedResolution={false}
+        targetFrameRate={performanceProfile.targetFrameRate}
+        // This is a creation-only Cesium setting, kept low and stable to avoid
+        // recreating the viewer as a phone changes orientation.
+        msaaSamples={1}
       >
         {/* Photorealistic tiles — only shown in photo mode. */}
         <GooglePhotorealistic3DTileset
-          show={showTiles}
+          show={showTiles && pageVisible}
           onlyUsingWithGoogleGeocoder
+          maximumScreenSpaceError={performanceProfile.maximumScreenSpaceError}
+          cacheBytes={performanceProfile.tileCacheBytes}
+          cullRequestsWhileMoving
+          preloadWhenHidden={false}
+          preloadFlightDestinations={false}
+          foveatedScreenSpaceError
+          skipLevelOfDetail={performanceProfile.isHandset}
           onError={(err) => setErrored(err instanceof Error ? err.message : 'Google 3D Tiles could not load.')}
         />
 
@@ -536,45 +707,94 @@ export const StadiumMap3D: React.FC<StadiumMap3DProps> = ({ userLocation, encode
             ));
           })}
 
-        {/* --- Vertical circulation: columns through the floor stack --- */}
+        {/* --- Vertical circulation: each connection drawn through its real
+             per-floor stops. Elevators also get a translucent shaft cylinder;
+             escalators/ramps use a dashed (inclined) line; stairs glow. --- */}
         {mode === 'structure' &&
-          connectionColumns.map((col) => (
-            <Entity
-              key={`conn-${col.id}`}
-              onClick={() => setPicked({ name: `${col.icon} ${col.name}`, floorName: col.accessible ? 'Accessible · step-free' : col.label })}
-            >
-              <PolylineGraphics
-                positions={col.positions}
-                width={col.accessible ? 7 : 5}
-                material={
-                  new PolylineGlowMaterialProperty({
-                    glowPower: 0.25,
-                    color: Color.fromCssColorString(col.color).withAlpha(0.9),
-                  })
-                }
-              />
-            </Entity>
-          ))}
+          connectionColumns.map((col) => {
+            const clickInfo = () =>
+              setPicked({ name: `${col.icon} ${col.name}`, floorName: col.accessible ? 'Accessible · step-free' : col.label });
+            const dashed = col.type === 'escalator' || col.type === 'ramp';
+            return (
+              <Entity key={`conn-${col.id}`} onClick={clickInfo}>
+                <PolylineGraphics
+                  positions={col.positions}
+                  width={col.accessible ? 7 : 5}
+                  material={
+                    dashed
+                      ? new PolylineDashMaterialProperty({
+                          color: col.color.withAlpha(0.95),
+                          dashLength: 12,
+                        })
+                      : new PolylineGlowMaterialProperty({
+                          glowPower: 0.25,
+                          color: col.color.withAlpha(0.9),
+                        })
+                  }
+                />
+              </Entity>
+            );
+          })}
 
-        {/* Connection top-of-column marker (icon + name at the highest stop). */}
+        {/* Elevator shafts — slim translucent cylinders so they read as real
+             vertical shafts rather than a bare line. */}
         {mode === 'structure' &&
-          connectionColumns.map((col) => (
-            <Entity
-              key={`conn-lbl-${col.id}`}
-              position={col.topPosition}
-              point={{ pixelSize: 8, color: Color.fromCssColorString(col.color), outlineColor: Color.WHITE, outlineWidth: 1 }}
-              label={{
-                text: `${col.icon} ${col.name}`,
-                font: '10px sans-serif',
-                fillColor: Color.WHITE,
-                outlineColor: Color.BLACK,
-                outlineWidth: 2,
-                pixelOffset: new Cartesian2(0, -12),
-                showBackground: true,
-                backgroundColor: Color.fromCssColorString(col.color).withAlpha(0.4),
-              }}
-            />
-          ))}
+          connectionColumns
+            .filter((col) => col.type === 'elevator')
+            .map((col) => (
+              <Entity key={`conn-shaft-${col.id}`} position={col.shaftCenter} onClick={() => setPicked({ name: `${col.icon} ${col.name}`, floorName: 'Accessible · step-free' })}>
+                <CylinderGraphics
+                  length={col.shaftLength}
+                  topRadius={2.2}
+                  bottomRadius={2.2}
+                  material={col.color.withAlpha(0.22)}
+                  outline
+                  outlineColor={col.color.withAlpha(0.7)}
+                  slices={16}
+                />
+              </Entity>
+            ))}
+
+        {/* Per-floor stop discs — one per level a connection serves. The stop on
+             the currently-selected floor is enlarged so a fan sees exactly where
+             to board on their level. */}
+        {mode === 'structure' &&
+          connectionColumns.flatMap((col) =>
+            col.stopDiscs.map((d) => (
+              <Entity key={`stop-${d.id}`} position={d.position}>
+                <PointGraphics
+                  pixelSize={d.onSelectedFloor ? 15 : 7}
+                  color={col.color}
+                  outlineColor={d.onSelectedFloor ? Color.WHITE : Color.fromCssColorString('#0f172a')}
+                  outlineWidth={d.onSelectedFloor ? 3 : 1}
+                />
+              </Entity>
+            )),
+          )}
+
+        {/* Connection name label — on the selected floor's stop when a floor is
+             chosen, otherwise capping the highest stop. */}
+        {mode === 'structure' &&
+          connectionColumns.map((col) => {
+            const onFloor = col.stopDiscs.find((d) => d.onSelectedFloor);
+            const labelPos = onFloor ? onFloor.position : col.topPosition;
+            return (
+              <Entity
+                key={`conn-name-${col.id}`}
+                position={labelPos}
+                label={{
+                  text: `${col.icon} ${col.name}`,
+                  font: onFloor ? 'bold 11px sans-serif' : '10px sans-serif',
+                  fillColor: Color.WHITE,
+                  outlineColor: Color.BLACK,
+                  outlineWidth: 2,
+                  pixelOffset: new Cartesian2(0, -14),
+                  showBackground: true,
+                  backgroundColor: col.color.withAlpha(onFloor ? 0.6 : 0.4),
+                }}
+              />
+            );
+          })}
 
         {/* --- Facility pins on the selected floor --- */}
         {mode === 'structure' &&
@@ -808,6 +1028,11 @@ export const StadiumMap3D: React.FC<StadiumMap3DProps> = ({ userLocation, encode
             />
             ♿ Step-free only
           </label>
+          <p className="mt-1 text-[9px] text-surface-500">
+            {selectedElevation === null
+              ? `${visibleConnCount} shown · all levels`
+              : `${visibleConnCount} on ${selectedFloorName || 'this level'}`}
+          </p>
         </div>
       )}
 
