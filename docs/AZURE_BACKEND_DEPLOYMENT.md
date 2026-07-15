@@ -83,8 +83,10 @@ In Microsoft Entra ID:
    - Branch: main
 5. In the Web App's Access control (IAM), assign the app registration's
    service principal the Website Contributor role, scoped to this Web App.
-6. In the Container Registry's Access control (IAM), assign it the AcrPush
-   role, scoped to this registry.
+6. In the Container Registry's Access control (IAM), assign it both the
+   Reader and AcrPush roles, scoped to this registry. Reader lets the workflow
+   read the registry login server; AcrPush lets `az acr build` create and push
+   the image.
 
 In Azure, copy the subscription ID from Subscriptions.
 
