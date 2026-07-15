@@ -1,6 +1,19 @@
-import { Link } from 'react-router-dom';
+import React from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { Wordmark } from '../components/brand/Logo.tsx';
 import TrophyScene from '../components/trophy/TrophyScene.tsx';
+import { LimelightNav, type NavItem } from '../components/ui/LimelightNav.tsx';
+
+// Header destination glyphs: concierge chat, tactical map, staff shield.
+const ChatIcon = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z" /></svg>
+);
+const MapPinIcon = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0" /><circle cx="12" cy="10" r="3" /></svg>
+);
+const ShieldIcon = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" /></svg>
+);
 
 const FEATURES = [
   {
@@ -36,6 +49,12 @@ const FEATURES = [
 ];
 
 export default function Landing() {
+  const navigate = useNavigate();
+  const navItems: NavItem[] = [
+    { id: 'concierge', icon: <ChatIcon />, label: 'Concierge', onClick: () => navigate('/concierge') },
+    { id: 'navigate', icon: <MapPinIcon />, label: 'Tactical map', onClick: () => navigate('/navigate') },
+    { id: 'admin', icon: <ShieldIcon />, label: 'Staff', onClick: () => navigate('/admin') },
+  ];
   return (
     <div className="relative min-h-screen overflow-hidden bg-surface-950 font-sans text-surface-50">
       {/* Background Ambient Glows */}
@@ -47,22 +66,23 @@ export default function Landing() {
         {/* Header */}
         <header className="flex items-center justify-between glass-panel rounded-pill px-6 py-3">
           <Wordmark />
-          <nav className="flex items-center gap-6 text-sm font-medium">
+          <div className="flex items-center gap-4 text-sm font-medium">
             <a
               href="https://github.com/ArpitKumar8649/Smart-Stadium"
               target="_blank"
               rel="noreferrer"
-              className="text-surface-300 transition hover:text-surface-50"
+              className="hidden text-surface-300 transition hover:text-surface-50 sm:inline"
             >
               GitHub Repo
             </a>
-            <Link
-              to="/admin"
-              className="rounded-pill bg-surface-800 px-4 py-2 text-surface-200 transition hover:bg-surface-700"
-            >
-              Staff Login
-            </Link>
-          </nav>
+            <LimelightNav
+              className="h-12 rounded-xl px-1"
+              iconContainerClassName="!px-3.5 !py-2"
+              iconClassName="w-5 h-5"
+              items={navItems}
+              defaultActiveIndex={0}
+            />
+          </div>
         </header>
 
         {/* Hero Section */}

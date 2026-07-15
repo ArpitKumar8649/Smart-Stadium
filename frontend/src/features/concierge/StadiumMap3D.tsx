@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Ion,
   IonGeocodeProviderType,
@@ -8,6 +8,7 @@ import {
   Math as CesiumMath,
   HeightReference,
   PolygonHierarchy,
+  PolylineGlowMaterialProperty,
   type Viewer as CesiumViewer,
 } from 'cesium';
 import {
@@ -23,22 +24,45 @@ import polyline from '@mapbox/polyline';
 import {
   loadFloors,
   loadRooms,
+  loadSections,
+  loadConnections,
+  routeToSection,
   floorHeights,
   floorColor,
   matchFacility,
   FACILITY_STYLE,
+  CONNECTION_STYLE,
   type FloorInfo,
   type RoomShape,
   type FacilityKind,
+  type SectionInfo,
+  type RoutePoint,
+  type ConnectionInfo,
+  type ConnectionKind,
 } from './floorData.ts';
+import { LimelightNav, type NavItem } from '../../components/ui/LimelightNav.tsx';
+
+// Globe (photorealistic) + layers (structure stack) glyphs for the view toggle.
+const GlobeIcon = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20" /><path d="M2 12h20" /></svg>
+);
+const LayersIcon = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z" /><path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65" /><path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65" /></svg>
+);
 
 interface StadiumMap3DProps {
   userLocation: { lat: number; lng: number } | null;
   encodedPolyline?: string | null;
+  /** A seating section name (e.g. "128") to highlight — driven by the concierge. */
+  focusSection?: string | null;
 }
 
 /** MetLife Stadium — same anchor the Leaflet map uses. */
 const METLIFE = { lat: 40.8128, lng: -74.0742 };
+
+/** Default route origin — the venue graph routes by label, so "walk me there"
+ *  starts from a real public gate rather than GPS. */
+const DEFAULT_START_LABEL = 'Metlife VIP Gate';
 
 // Set the Ion token once at module load (before any Viewer mounts). Undefined
 // when the user hasn't configured it — the component shows a "needs token" card.
@@ -65,17 +89,34 @@ interface SelectedRoom {
  *
  * Both modes share the same `userLocation` + route polyline as the 2D map.
  */
-export const StadiumMap3D: React.FC<StadiumMap3DProps> = ({ userLocation, encodedPolyline }) => {
+export const StadiumMap3D: React.FC<StadiumMap3DProps> = ({ userLocation, encodedPolyline, focusSection }) => {
   const [errored, setErrored] = useState<string | null>(null);
   const [mode, setMode] = useState<ViewMode>('photo');
   const [floors, setFloors] = useState<FloorInfo[]>([]);
   const [selectedFloor, setSelectedFloor] = useState<string | null>(null);
   const [rooms, setRooms] = useState<RoomShape[]>([]);
   const [picked, setPicked] = useState<SelectedRoom | null>(null);
+  const [sections, setSections] = useState<SectionInfo[]>([]);
+  const [activeSection, setActiveSection] = useState<string | null>(null);
+  const [query, setQuery] = useState('');
+  // Vertical circulation (elevators/stairs/escalators/ramps) + which kinds show.
+  const [connections, setConnections] = useState<ConnectionInfo[]>([]);
+  const [connFilter, setConnFilter] = useState<Record<ConnectionKind, boolean>>({
+    elevator: true,
+    escalator: false,
+    stairs: false,
+    ramp: true,
+  });
+  const [accessibleOnly, setAccessibleOnly] = useState(false);
+  // Indoor walking path to the active section (null = none shown).
+  const [routePts, setRoutePts] = useState<RoutePoint[] | null>(null);
+  const [routing, setRouting] = useState(false);
   const roomsReqRef = useRef(0);
+  const routeReqRef = useRef(0);
   const viewerRef = useRef<CesiumComponentRef<CesiumViewer> | null>(null);
 
-  // Lazy-load the floor footprints the first time Structure mode is opened.
+  // Lazy-load the floor footprints + section index the first time Structure
+  // mode is opened (both are small and needed together for section highlight).
   useEffect(() => {
     if (mode !== 'structure' || floors.length > 0) return;
     const ctrl = new AbortController();
@@ -83,6 +124,16 @@ export const StadiumMap3D: React.FC<StadiumMap3DProps> = ({ userLocation, encode
       .then((f) => setFloors(f))
       .catch((e) => {
         if (!ctrl.signal.aborted) setErrored(e instanceof Error ? e.message : 'Could not load floor data.');
+      });
+    loadSections(ctrl.signal)
+      .then((s) => setSections(s))
+      .catch(() => {
+        /* Section highlight is optional — the stack still works without it. */
+      });
+    loadConnections(ctrl.signal)
+      .then((c) => setConnections(c))
+      .catch(() => {
+        /* Vertical circulation is optional — the stack still works without it. */
       });
     return () => ctrl.abort();
   }, [mode, floors.length]);
@@ -106,6 +157,88 @@ export const StadiumMap3D: React.FC<StadiumMap3DProps> = ({ userLocation, encode
     return () => ctrl.abort();
   }, [selectedFloor]);
 
+  // Activate a section by name: switch to Structure, select its floor, mark it
+  // active, and fly the camera to it. Shared by the search box, section clicks,
+  // and the concierge-driven `focusSection` prop.
+  const activateSection = useCallback(
+    (name: string) => {
+      const sec = sections.find((s) => s.name.toUpperCase() === name.toUpperCase());
+      if (!sec) return false;
+      // Only set state here; the camera fly-to lives in a dedicated effect so it
+      // runs *after* the mode-staging effect and never gets overridden by it.
+      setMode('structure');
+      setSelectedFloor(sec.floorId);
+      setActiveSection(sec.name);
+      setQuery('');
+      return true;
+    },
+    [sections],
+  );
+
+  // The active section's record (name → floor, elevation, center). Declared
+  // before the camera effects that depend on it to avoid a temporal-dead-zone.
+  const activeSectionObj = useMemo(
+    () => sections.find((s) => s.name === activeSection) ?? null,
+    [sections, activeSection],
+  );
+
+  // Draw the walking path to the active section. Starts from a public gate
+  // (the graph routes by label, not GPS), step-free if the fan is on GPS-less
+  // accessibility — kept simple here. A race guard keeps only the latest route.
+  const showRouteToActive = useCallback(
+    (stepFree = false) => {
+      if (!activeSection) return;
+      const reqId = ++routeReqRef.current;
+      setRouting(true);
+      routeToSection(activeSection, DEFAULT_START_LABEL, stepFree)
+        .then((pts) => {
+          if (reqId !== routeReqRef.current) return;
+          setRoutePts(pts);
+          setRouting(false);
+        })
+        .catch(() => {
+          if (reqId !== routeReqRef.current) return;
+          setRoutePts(null);
+          setRouting(false);
+        });
+    },
+    [activeSection],
+  );
+
+  // Clearing the active section also clears any drawn route.
+  useEffect(() => {
+    if (!activeSection) setRoutePts(null);
+  }, [activeSection]);
+
+  // The indoor route as Cesium positions, lifted to each point's floor height so
+  // the path climbs the stack visibly (level 0 at ground, upper levels raised).
+  const routePositions3D = useMemo(() => {
+    if (!routePts) return null;
+    const heights = routePts.flatMap((p) => {
+      const top = floorHeights(p.level).top;
+      return [p.coords[0], p.coords[1], top + 6];
+    });
+    return Cartesian3.fromDegreesArrayHeights(heights);
+  }, [routePts]);
+
+  // The route's first point (start gate) — extracted so TS narrows it for the pin.
+  const routeStart = routePts && routePts.length > 0 ? routePts[0] : null;
+
+  // Concierge-driven highlight: when the conversation names a section, load the
+  // index if needed and fly to it. Runs whenever the focused section changes.
+  useEffect(() => {
+    if (!focusSection) return;
+    if (sections.length === 0) {
+      const ctrl = new AbortController();
+      loadSections(ctrl.signal)
+        .then((s) => setSections(s))
+        .catch(() => {});
+      return () => ctrl.abort();
+    }
+    activateSection(focusSection);
+    return undefined;
+  }, [focusSection, sections.length, activateSection]);
+
   // Stage the scene per mode: in Structure, hide the globe/sky so the extruded
   // model floats on a clean dark backdrop (the navy was Cesium's empty globe).
   useEffect(() => {
@@ -117,18 +250,42 @@ export const StadiumMap3D: React.FC<StadiumMap3DProps> = ({ userLocation, encode
       scene.backgroundColor = Color.fromCssColorString('#0a0e16');
       if (scene.skyBox) scene.skyBox.show = false;
       if (scene.skyAtmosphere) scene.skyAtmosphere.show = false;
-      // Frame the stack from a low three-quarter angle.
-      viewer.camera.flyTo({
-        destination: Cartesian3.fromDegrees(METLIFE.lng, METLIFE.lat - 0.0042, 360),
-        orientation: { heading: CesiumMath.toRadians(15), pitch: CesiumMath.toRadians(-24), roll: 0 },
-        duration: 1.6,
-      });
+      // Frame the whole stack — unless we entered Structure to show a specific
+      // section, in which case the section fly-to effect owns the camera.
+      if (!activeSection) {
+        viewer.camera.flyTo({
+          destination: Cartesian3.fromDegrees(METLIFE.lng, METLIFE.lat - 0.0042, 360),
+          orientation: { heading: CesiumMath.toRadians(15), pitch: CesiumMath.toRadians(-24), roll: 0 },
+          duration: 1.6,
+        });
+      }
     } else {
       scene.globe.show = true;
       if (scene.skyBox) scene.skyBox.show = true;
       if (scene.skyAtmosphere) scene.skyAtmosphere.show = true;
     }
+    // `activeSection` intentionally omitted from deps: we only want stack-framing
+    // on a genuine mode switch, not every time the highlighted section changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode]);
+
+  // Fly to the active section. Declared after the staging effect so, on the same
+  // render that switches into Structure, this camera move runs last and wins.
+  useEffect(() => {
+    if (mode !== 'structure' || !activeSectionObj) return;
+    const viewer = viewerRef.current?.cesiumElement;
+    if (!viewer) return;
+    const { top } = floorHeights(activeSectionObj.elevation);
+    viewer.camera.flyTo({
+      destination: Cartesian3.fromDegrees(
+        activeSectionObj.center[0],
+        activeSectionObj.center[1] - 0.0016,
+        top + 190,
+      ),
+      orientation: { heading: CesiumMath.toRadians(0), pitch: CesiumMath.toRadians(-42), roll: 0 },
+      duration: 1.8,
+    });
+  }, [mode, activeSectionObj]);
 
   // Decode the Google Routes polyline (lat,lng pairs) into Cesium positions.
   const routePositions = useMemo(() => {
@@ -172,8 +329,75 @@ export const StadiumMap3D: React.FC<StadiumMap3DProps> = ({ userLocation, encode
       });
   }, [rooms, selectedElevation]);
 
+  // Reverse index: which polygon ids on the selected floor are seating sections
+  // (so a room click can activate the section instead of just naming it).
+  const sectionByPolygon = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const s of sections) {
+      if (s.floorId === selectedFloor) m.set(s.polygonId, s.name);
+    }
+    return m;
+  }, [sections, selectedFloor]);
+
+  // Type-ahead matches for the section search box. Matches anywhere in the name
+  // (so "club" finds "MetLife 50 Club", "suite 3" finds the suites) but ranks
+  // prefix matches first, then alphabetically/numerically. Cap the list.
+  const searchMatches = useMemo(() => {
+    const q = query.trim().toUpperCase();
+    if (!q) return [];
+    return sections
+      .filter((s) => s.name.toUpperCase().includes(q))
+      .sort((a, b) => {
+        const ap = a.name.toUpperCase().startsWith(q) ? 0 : 1;
+        const bp = b.name.toUpperCase().startsWith(q) ? 0 : 1;
+        if (ap !== bp) return ap - bp;
+        return a.name.localeCompare(b.name, undefined, { numeric: true });
+      })
+      .slice(0, 12);
+  }, [query, sections]);
+
+  // Visible vertical connections → drawable columns. A connection shows when
+  // its kind is enabled (and, in accessible-only mode, when it's step-free).
+  // Each becomes a vertical polyline from its lowest to highest stop, plus a
+  // labelled cap at the top for a pin.
+  const connectionColumns = useMemo(() => {
+    if (connections.length === 0) return [];
+    return connections
+      .filter((c) => connFilter[c.type] && (!accessibleOnly || c.accessible))
+      .flatMap((c) => {
+        const stops = [...c.points].sort((a, b) => a.elevation - b.elevation);
+        if (stops.length < 2) return [];
+        const lo = stops[0];
+        const hi = stops[stops.length - 1];
+        if (!lo || !hi) return [];
+        // Draw the shaft at the mean lng/lat so slight per-floor drift reads as
+        // one straight column; span from the bottom stop's base to the top's top.
+        const meanLng = stops.reduce((s, p) => s + p.coords[0], 0) / stops.length;
+        const meanLat = stops.reduce((s, p) => s + p.coords[1], 0) / stops.length;
+        const base = floorHeights(lo.elevation).base;
+        const top = floorHeights(hi.elevation).top;
+        const style = CONNECTION_STYLE[c.type];
+        return [{
+          id: c.id,
+          name: c.name,
+          type: c.type,
+          accessible: c.accessible,
+          color: style.color,
+          icon: style.icon,
+          label: style.label,
+          positions: Cartesian3.fromDegreesArrayHeights([meanLng, meanLat, base, meanLng, meanLat, top]),
+          topPosition: Cartesian3.fromDegrees(meanLng, meanLat, top + 4),
+        }];
+      });
+  }, [connections, connFilter, accessibleOnly]);
+
   // Camera target: the fan's location if known, otherwise the stadium.
   const focus = userLocation ?? METLIFE;
+
+  const viewNavItems: NavItem[] = [
+    { id: 'photo', icon: <GlobeIcon />, label: 'Photorealistic' },
+    { id: 'structure', icon: <LayersIcon />, label: 'Structure' },
+  ];
 
   if (!ION_TOKEN) {
     return (
@@ -279,28 +503,78 @@ export const StadiumMap3D: React.FC<StadiumMap3DProps> = ({ userLocation, encode
             );
           })}
 
-        {/* --- Selected floor's real rooms, extruded and clickable --- */}
+        {/* --- Selected floor's real rooms, extruded and clickable. A room
+             that is a seating section, when active, glows amber and rises. --- */}
         {mode === 'structure' &&
           selectedElevation !== null &&
           rooms.map((room) => {
             const { top } = floorHeights(selectedElevation);
+            const sectionName = sectionByPolygon.get(room.id) ?? null;
+            const isActive = sectionName !== null && sectionName === activeSection;
+            const onClick = sectionName
+              ? () => activateSection(sectionName)
+              : () => room.name && setPicked({ name: room.name, floorName: selectedFloorName });
             return room.hierarchies.map((h, i) => (
               <Entity
                 key={`${room.id}-${i}`}
                 {...(room.name ? { name: room.name } : {})}
-                onClick={() => room.name && setPicked({ name: room.name, floorName: selectedFloorName })}
+                onClick={onClick}
               >
                 <PolygonGraphics
                   hierarchy={h}
                   height={top}
-                  extrudedHeight={top + 4}
-                  material={Color.fromCssColorString('#cbd5e1').withAlpha(0.82)}
+                  extrudedHeight={isActive ? top + 20 : top + 4}
+                  material={
+                    isActive
+                      ? Color.fromCssColorString('#f59e0b').withAlpha(0.92)
+                      : Color.fromCssColorString('#cbd5e1').withAlpha(0.82)
+                  }
                   outline
-                  outlineColor={Color.fromCssColorString('#334155')}
+                  outlineColor={isActive ? Color.fromCssColorString('#fde68a') : Color.fromCssColorString('#334155')}
                 />
               </Entity>
             ));
           })}
+
+        {/* --- Vertical circulation: columns through the floor stack --- */}
+        {mode === 'structure' &&
+          connectionColumns.map((col) => (
+            <Entity
+              key={`conn-${col.id}`}
+              onClick={() => setPicked({ name: `${col.icon} ${col.name}`, floorName: col.accessible ? 'Accessible · step-free' : col.label })}
+            >
+              <PolylineGraphics
+                positions={col.positions}
+                width={col.accessible ? 7 : 5}
+                material={
+                  new PolylineGlowMaterialProperty({
+                    glowPower: 0.25,
+                    color: Color.fromCssColorString(col.color).withAlpha(0.9),
+                  })
+                }
+              />
+            </Entity>
+          ))}
+
+        {/* Connection top-of-column marker (icon + name at the highest stop). */}
+        {mode === 'structure' &&
+          connectionColumns.map((col) => (
+            <Entity
+              key={`conn-lbl-${col.id}`}
+              position={col.topPosition}
+              point={{ pixelSize: 8, color: Color.fromCssColorString(col.color), outlineColor: Color.WHITE, outlineWidth: 1 }}
+              label={{
+                text: `${col.icon} ${col.name}`,
+                font: '10px sans-serif',
+                fillColor: Color.WHITE,
+                outlineColor: Color.BLACK,
+                outlineWidth: 2,
+                pixelOffset: new Cartesian2(0, -12),
+                showBackground: true,
+                backgroundColor: Color.fromCssColorString(col.color).withAlpha(0.4),
+              }}
+            />
+          ))}
 
         {/* --- Facility pins on the selected floor --- */}
         {mode === 'structure' &&
@@ -327,6 +601,28 @@ export const StadiumMap3D: React.FC<StadiumMap3DProps> = ({ userLocation, encode
               }}
             />
           ))}
+
+        {/* --- Active section beacon: a bright label floating above it --- */}
+        {mode === 'structure' && activeSectionObj && selectedElevation !== null && (
+          <Entity
+            position={Cartesian3.fromDegrees(
+              activeSectionObj.center[0],
+              activeSectionObj.center[1],
+              floorHeights(selectedElevation).top + 30,
+            )}
+            point={{ pixelSize: 12, color: Color.fromCssColorString('#f59e0b'), outlineColor: Color.WHITE, outlineWidth: 2 }}
+            label={{
+              text: `Section ${activeSectionObj.name}`,
+              font: 'bold 14px sans-serif',
+              fillColor: Color.fromCssColorString('#fde68a'),
+              outlineColor: Color.BLACK,
+              outlineWidth: 3,
+              showBackground: true,
+              backgroundColor: Color.fromCssColorString('#78350f').withAlpha(0.85),
+              pixelOffset: new Cartesian2(0, -18),
+            }}
+          />
+        )}
 
         {/* Stadium anchor label (photo mode only — noisy over the stack). */}
         {mode === 'photo' && (
@@ -357,23 +653,102 @@ export const StadiumMap3D: React.FC<StadiumMap3DProps> = ({ userLocation, encode
             />
           </Entity>
         )}
+
+        {/* Indoor route to the active section (structure mode) — an amber path
+            that climbs the stack from the start gate to the seat. */}
+        {routePositions3D && mode === 'structure' && (
+          <Entity>
+            <PolylineGraphics
+              positions={routePositions3D}
+              width={6}
+              material={
+                new PolylineGlowMaterialProperty({
+                  color: Color.fromCssColorString('#f59e0b'),
+                  glowPower: 0.25,
+                })
+              }
+            />
+          </Entity>
+        )}
+        {routeStart && mode === 'structure' && (
+          <Entity
+            position={Cartesian3.fromDegrees(
+              routeStart.coords[0],
+              routeStart.coords[1],
+              floorHeights(routeStart.level).top + 10,
+            )}
+            point={{ pixelSize: 12, color: Color.fromCssColorString('#22c55e'), outlineColor: Color.WHITE, outlineWidth: 2 }}
+            label={{
+              text: `Start · ${routeStart.label}`,
+              font: '11px sans-serif',
+              fillColor: Color.WHITE,
+              outlineColor: Color.BLACK,
+              outlineWidth: 2,
+              showBackground: true,
+              backgroundColor: Color.fromCssColorString('#065f46').withAlpha(0.85),
+              pixelOffset: new Cartesian2(0, -16),
+            }}
+          />
+        )}
       </Viewer>
 
-      {/* Mode toggle */}
-      <div className="absolute left-3 top-3 z-10 flex overflow-hidden rounded-full border border-surface-700 bg-surface-900/85 text-[11px] font-semibold backdrop-blur">
-        <button
-          onClick={() => setMode('photo')}
-          className={`px-3 py-1 transition ${mode === 'photo' ? 'bg-primary text-surface-950' : 'text-surface-300 hover:text-surface-100'}`}
-        >
-          Photorealistic
-        </button>
-        <button
-          onClick={() => setMode('structure')}
-          className={`px-3 py-1 transition ${mode === 'structure' ? 'bg-primary text-surface-950' : 'text-surface-300 hover:text-surface-100'}`}
-        >
-          Structure
-        </button>
+      {/* Mode toggle — Photorealistic (globe) vs Structure (layers) */}
+      <div className="absolute left-3 top-3 z-10 flex items-center gap-2">
+        <LimelightNav
+          className="h-11 rounded-xl px-1"
+          iconContainerClassName="!p-3"
+          iconClassName="w-5 h-5"
+          items={viewNavItems}
+          activeIndex={mode === 'photo' ? 0 : 1}
+          onTabChange={(i) => setMode(i === 0 ? 'photo' : 'structure')}
+        />
+        <span className="rounded-full bg-surface-900/85 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-surface-300 backdrop-blur">
+          {mode === 'photo' ? 'Photorealistic' : 'Structure'}
+        </span>
       </div>
+
+      {/* Find my seat (structure mode) — type a section/suite from your ticket to
+          fly + glow, then optionally route a walking path to it. */}
+      {mode === 'structure' && sections.length > 0 && (
+        <div className="absolute left-1/2 top-3 z-20 w-60 -translate-x-1/2">
+          <div className="rounded-2xl border border-surface-700 bg-surface-900/90 p-2 backdrop-blur">
+            <p className="mb-1.5 flex items-center justify-center gap-1 text-[10px] font-mono uppercase tracking-wider text-surface-400">
+              <span aria-hidden>🎟️</span> Find my seat
+            </p>
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && searchMatches[0]) activateSection(searchMatches[0].name);
+                if (e.key === 'Escape') setQuery('');
+              }}
+              type="text"
+              autoComplete="off"
+              placeholder="Section or suite from your ticket…"
+              className="w-full rounded-full border border-surface-700 bg-surface-950/80 px-3 py-1.5 text-center text-xs text-surface-100 placeholder:text-surface-500 focus:border-primary focus:outline-none"
+            />
+            {searchMatches.length > 0 && (
+              <div className="mt-1.5 flex max-h-56 flex-col gap-1 overflow-y-auto">
+                {searchMatches.map((s) => (
+                  <button
+                    key={s.name}
+                    onClick={() => activateSection(s.name)}
+                    className="flex items-center justify-between gap-2 rounded-lg bg-surface-800 px-2.5 py-1.5 text-left text-[11px] font-semibold text-surface-100 transition hover:bg-primary hover:text-surface-950"
+                  >
+                    <span className="truncate">{s.name}</span>
+                    <span className="shrink-0 rounded bg-surface-950/50 px-1.5 py-0.5 text-[9px] font-normal opacity-70">
+                      Lvl {s.elevation}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+            {query.trim() && searchMatches.length === 0 && (
+              <p className="mt-1.5 text-center text-[10px] text-surface-500">No match — try a number or "suite".</p>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Floor selector (structure mode) */}
       {mode === 'structure' && floors.length > 0 && (
@@ -396,8 +771,91 @@ export const StadiumMap3D: React.FC<StadiumMap3DProps> = ({ userLocation, encode
         </div>
       )}
 
-      {/* Clicked-room popup */}
-      {picked && (
+      {/* Vertical-circulation legend + filter (structure mode) */}
+      {mode === 'structure' && connections.length > 0 && (
+        <div className="absolute right-3 top-14 z-10 w-[168px] rounded-xl border border-surface-700 bg-surface-900/85 p-2 backdrop-blur">
+          <p className="mb-1.5 text-[10px] font-mono uppercase tracking-wider text-surface-400">Getting around</p>
+          <div className="flex flex-col gap-1">
+            {(Object.keys(CONNECTION_STYLE) as ConnectionKind[]).map((kind) => {
+              const style = CONNECTION_STYLE[kind];
+              const on = connFilter[kind];
+              const count = connections.filter((c) => c.type === kind).length;
+              return (
+                <button
+                  key={kind}
+                  onClick={() => setConnFilter((prev) => ({ ...prev, [kind]: !prev[kind] }))}
+                  className={`flex items-center justify-between gap-2 rounded-lg px-2 py-1 text-left text-[11px] transition ${on ? 'bg-surface-800 text-surface-50' : 'text-surface-500 hover:bg-surface-800/50'}`}
+                >
+                  <span className="flex items-center gap-1.5">
+                    <span
+                      aria-hidden
+                      className="inline-block h-2.5 w-2.5 rounded-full"
+                      style={{ backgroundColor: on ? style.color : 'transparent', border: `1px solid ${style.color}` }}
+                    />
+                    {style.icon} {style.label}
+                  </span>
+                  <span className="text-[9px] opacity-60">{count}</span>
+                </button>
+              );
+            })}
+          </div>
+          <label className="mt-1.5 flex cursor-pointer items-center gap-1.5 border-t border-surface-800 pt-1.5 text-[10px] text-surface-300">
+            <input
+              type="checkbox"
+              checked={accessibleOnly}
+              onChange={(e) => setAccessibleOnly(e.target.checked)}
+              className="h-3 w-3 accent-primary"
+            />
+            ♿ Step-free only
+          </label>
+        </div>
+      )}
+
+      {/* Active-section card (structure mode) */}
+      {mode === 'structure' && activeSectionObj && (
+        <div className="absolute bottom-3 right-3 z-10 w-[230px] rounded-xl border border-amber-500/40 bg-surface-900/92 p-3 backdrop-blur">
+          <button
+            onClick={() => setActiveSection(null)}
+            className="absolute right-2 top-2 text-surface-500 hover:text-surface-200"
+            aria-label="Clear section"
+          >
+            ×
+          </button>
+          <p className="text-[10px] font-mono uppercase tracking-wider text-amber-400">Seating section</p>
+          <p className="pr-4 text-lg font-bold text-surface-50">
+            {/^\d/.test(activeSectionObj.name) ? `Section ${activeSectionObj.name}` : activeSectionObj.name}
+          </p>
+          <p className="mt-0.5 text-[11px] text-surface-400">
+            {floors.find((f) => f.id === activeSectionObj.floorId)?.name ?? 'Seating bowl'}
+          </p>
+          <div className="mt-2.5 flex items-center gap-1.5">
+            {routePts ? (
+              <button
+                onClick={() => setRoutePts(null)}
+                className="flex-1 rounded-lg border border-surface-600 px-2 py-1.5 text-[11px] font-semibold text-surface-200 transition hover:bg-surface-800"
+              >
+                Hide path
+              </button>
+            ) : (
+              <button
+                onClick={() => showRouteToActive(false)}
+                disabled={routing}
+                className="flex-1 rounded-lg bg-amber-500 px-2 py-1.5 text-[11px] font-bold text-surface-950 transition hover:bg-amber-400 disabled:opacity-50"
+              >
+                {routing ? 'Routing…' : 'Walk me there'}
+              </button>
+            )}
+          </div>
+          {routePts && (
+            <p className="mt-1.5 text-[10px] text-surface-500">
+              Path from {routePts[0]?.label ?? 'gate'} · {routePts.length} steps
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* Clicked-room popup (non-section rooms) */}
+      {picked && !activeSectionObj && (
         <div className="absolute bottom-3 right-3 z-10 max-w-[220px] rounded-xl border border-surface-700 bg-surface-900/90 p-3 backdrop-blur">
           <button
             onClick={() => setPicked(null)}

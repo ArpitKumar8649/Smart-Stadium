@@ -148,3 +148,94 @@ export const FACILITY_STYLE: Record<FacilityKind, { icon: string; color: string;
   gate: { icon: '🚪', color: '#4ade80', label: 'Gate' },
   elevator: { icon: '🛗', color: '#c084fc', label: 'Elevator' },
 };
+
+/** A seating section — MetLife's 367 real bowl sections, each a highlightable
+ *  polygon. `polygonId` matches a `RoomShape.id` on the section's floor, so the
+ *  geometry comes from the same `loadRooms` data already fetched for that level. */
+export interface SectionInfo {
+  name: string;
+  floorId: string;
+  elevation: number;
+  polygonId: string;
+  center: [number, number];
+}
+
+/** Load the pre-built section index (name → floor, elevation, polygon, center). */
+export async function loadSections(signal?: AbortSignal): Promise<SectionInfo[]> {
+  const res = await fetch('/stadium/sections.json', signal ? { signal } : {});
+  if (!res.ok) throw new Error(`sections.json ${res.status}`);
+  return (await res.json()) as SectionInfo[];
+}
+
+/** Extract a seating-section or suite reference from free text — used to drive
+ *  the 3D highlight from the concierge conversation. Matches "Section 128",
+ *  "sec 320", "Suite 12", "Suite 3-30". Requires the keyword so a bare number
+ *  never false-matches. Returns the searchable name the section index uses. */
+export function parseSectionRef(text: string): string | null {
+  // Suite first (e.g. "Suite 3-30", "suite 12") → index name "Suite 3-30".
+  const suite = text.match(/\bsuite\s*#?\s*(\d{1,2}(?:-\d{1,2})?)\b/i);
+  if (suite && suite[1]) return `Suite ${suite[1]}`;
+  // Numeric section (e.g. "section 128", "sec 220a").
+  const sec = text.match(/\bsec(?:tion)?\s*#?\s*(\d{1,3}[a-z]?)\b/i);
+  return sec && sec[1] ? sec[1].toUpperCase() : null;
+}
+
+/** One point along an indoor route: [lng, lat] + which level it's on. */
+export interface RoutePoint {
+  coords: [number, number];
+  level: number;
+  label: string;
+}
+
+/** Ask the backend to route from a start label to a destination section, for
+ *  drawing the walking path in 3D. Returns the ordered points (with levels) or
+ *  null if no route exists. `from` defaults to a sensible public gate. */
+export async function routeToSection(
+  toLabel: string,
+  fromLabel: string,
+  stepFree: boolean,
+  signal?: AbortSignal,
+): Promise<RoutePoint[] | null> {
+  const res = await fetch('/api/navigation/route', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ from_label: fromLabel, to_label: toLabel, mode: stepFree ? 'step_free' : 'fastest' }),
+    ...(signal ? { signal } : {}),
+  });
+  if (!res.ok) return null;
+  const data = (await res.json()) as {
+    points?: { coords: [number, number]; level: number; label: string }[];
+  };
+  if (!data.points || data.points.length < 2) return null;
+  return data.points.map((p) => ({ coords: p.coords, level: p.level, label: p.label }));
+}
+
+/** Vertical circulation types we render as columns through the floor stack. */
+export type ConnectionKind = 'elevator' | 'escalator' | 'stairs' | 'ramp';
+
+/** One vertical connection (elevator/stairs/…): its stops, ordered by level. */
+export interface ConnectionInfo {
+  id: string;
+  type: ConnectionKind;
+  name: string;
+  accessible: boolean;
+  points: { coords: [number, number]; elevation: number }[];
+}
+
+/** Emoji + colour + label for each connection kind (legend + 3D columns). */
+export const CONNECTION_STYLE: Record<
+  ConnectionKind,
+  { icon: string; color: string; label: string }
+> = {
+  elevator: { icon: '🛗', color: '#38bdf8', label: 'Elevator' },
+  escalator: { icon: '↗', color: '#fbbf24', label: 'Escalator' },
+  stairs: { icon: '🪜', color: '#94a3b8', label: 'Stairs' },
+  ramp: { icon: '♿', color: '#4ade80', label: 'Ramp' },
+};
+
+/** Load the pre-built vertical-connection index (elevators, stairs, …). */
+export async function loadConnections(signal?: AbortSignal): Promise<ConnectionInfo[]> {
+  const res = await fetch('/stadium/connections.json', signal ? { signal } : {});
+  if (!res.ok) throw new Error(`connections.json ${res.status}`);
+  return (await res.json()) as ConnectionInfo[];
+}

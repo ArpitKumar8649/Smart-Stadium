@@ -6,6 +6,7 @@ import { MessageBubble } from '../features/concierge/MessageBubble.tsx';
 import { SignReader } from '../features/accessibility/SignReader.tsx';
 import { LiveCaptionPanel } from '../features/accessibility/LiveCaptionPanel.tsx';
 import { ConcourseMap } from '../features/concierge/ConcourseMap.tsx';
+import { parseSectionRef } from '../features/concierge/floorData.ts';
 
 const LANGS = [
   { code: 'en', label: 'English' },
@@ -69,6 +70,18 @@ export default function Concierge() {
           }
         }
       }
+    }
+    return null;
+  }, [messages]);
+
+  // The most recent seating section named anywhere in the conversation (user or
+  // assistant). Drives the 3D highlight — "take me to Section 128" lights it up.
+  const focusSection = useMemo(() => {
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const msg = messages[i];
+      if (!msg?.text) continue;
+      const ref = parseSectionRef(msg.text);
+      if (ref) return ref;
     }
     return null;
   }, [messages]);
@@ -254,6 +267,7 @@ export default function Concierge() {
         <ConcourseMap
           userLocation={gps}
           encodedPolyline={lastOutdoorRouteResult}
+          focusSection={focusSection}
           onSetLocation={(loc) => {
             setGps(loc);
             setGpsRequested(true);
