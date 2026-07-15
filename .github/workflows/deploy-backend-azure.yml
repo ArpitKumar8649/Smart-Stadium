@@ -9,8 +9,6 @@ on:
       - 'data/**'
       - 'package.json'
       - 'package-lock.json'
-      - 'frontend/package.json'
-      - '.dockerignore'
       - '.github/workflows/deploy-backend-azure.yml'
   workflow_dispatch:
 
@@ -25,22 +23,67 @@ concurrency:
 env:
   AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
   AZURE_WEBAPP_NAME: ${{ vars.AZURE_WEBAPP_NAME }}
-  AZURE_ACR_NAME: ${{ vars.AZURE_ACR_NAME }}
-  IMAGE_NAME: concourse-backend
+  # The repository supports Node 20 (>=20.11.0 and <21). Keep this on the
+  # current Node 20 release rather than pinning an old patch version.
+  NODE_VERSION: 20.x
 
 jobs:
-  build-and-deploy:
+  build:
     # Keeps the initial repository push safe: the job is skipped until the
     # non-secret Azure resource variables are configured in GitHub.
-    if: >-
-      vars.AZURE_RESOURCE_GROUP != '' &&
-      vars.AZURE_WEBAPP_NAME != '' &&
-      vars.AZURE_ACR_NAME != ''
+    if: vars.AZURE_RESOURCE_GROUP != '' && vars.AZURE_WEBAPP_NAME != ''
     runs-on: ubuntu-latest
 
     steps:
       - name: Check out source
         uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install build dependencies
+        run: npm ci
+
+      - name: Build shared package and backend
+        run: |
+          npm run build --workspace=shared
+          npm run build --workspace=backend
+
+      - name: Test backend
+        run: npm run test --workspace=shared --workspace=backend --if-present
+
+      - name: Assemble the production deployment package
+        run: |
+          mkdir -p deployment/backend deployment/shared
+          cp package.json package-lock.json deployment/
+          cp backend/package.json deployment/backend/
+          cp -R backend/dist deployment/backend/dist
+          cp shared/package.json deployment/shared/
+          cp -R shared/dist deployment/shared/dist
+          cp -R data deployment/data
+          node -e "const fs = require('node:fs'); const path = 'deployment/package.json'; const pkg = JSON.parse(fs.readFileSync(path, 'utf8')); pkg.workspaces = ['shared', 'backend']; fs.writeFileSync(path, JSON.stringify(pkg, null, 2) + '\\n');"
+          npm ci --prefix deployment --omit=dev
+
+      - name: Upload production artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-deployment
+          path: deployment
+          retention-days: 1
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download production artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: backend-deployment
+          path: backend-deployment
 
       - name: Sign in to Azure using OpenID Connect
         uses: azure/login@v2
@@ -49,38 +92,24 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Build and push immutable backend image
+      - name: Configure the Node.js App Service
+        uses: azure/appservice-settings@v1
+        with:
+          app-name: ${{ env.AZURE_WEBAPP_NAME }}
+          app-settings-json: >-
+            [{"name":"NODE_ENV","value":"production","slotSetting":false},{"name":"SCM_DO_BUILD_DURING_DEPLOYMENT","value":"false","slotSetting":false}]
+          general-settings-json: >-
+            {"alwaysOn":true,"webSocketsEnabled":true}
+
+      - name: Set the backend startup command
         run: |
-          az acr build \
-            --registry "$AZURE_ACR_NAME" \
-            --image "$IMAGE_NAME:${GITHUB_SHA}" \
-            --file backend/Dockerfile \
-            .
-
-      - name: Point App Service at the new image
-        run: |
-          ACR_LOGIN_SERVER="$(az acr show \
-            --name "$AZURE_ACR_NAME" \
-            --resource-group "$AZURE_RESOURCE_GROUP" \
-            --query loginServer \
-            --output tsv)"
-          IMAGE="${ACR_LOGIN_SERVER}/${IMAGE_NAME}:${GITHUB_SHA}"
-
-          az webapp config appsettings set \
-            --name "$AZURE_WEBAPP_NAME" \
-            --resource-group "$AZURE_RESOURCE_GROUP" \
-            --settings WEBSITES_PORT=8080 NODE_ENV=production
-
           az webapp config set \
             --name "$AZURE_WEBAPP_NAME" \
             --resource-group "$AZURE_RESOURCE_GROUP" \
-            --generic-configurations '{"acrUseManagedIdentityCreds": true}'
+            --startup-file "node backend/dist/server.js"
 
-          az webapp config container set \
-            --name "$AZURE_WEBAPP_NAME" \
-            --resource-group "$AZURE_RESOURCE_GROUP" \
-            --container-image-name "$IMAGE"
-
-          az webapp restart \
-            --name "$AZURE_WEBAPP_NAME" \
-            --resource-group "$AZURE_RESOURCE_GROUP"
+      - name: Deploy the built backend to Azure Web App
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ env.AZURE_WEBAPP_NAME }}
+          package: backend-deployment
