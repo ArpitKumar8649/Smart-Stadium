@@ -1,4 +1,5 @@
 name: Deploy backend to Azure App Service
+# A change to this workflow intentionally triggers the first Azure deployment.
 
 on:
   push:
