@@ -13,6 +13,9 @@ In the Azure portal, create these resources in the same region:
 2. An Azure Container Registry (Basic is sufficient for a hackathon).
    Its name must be globally unique, lowercase, and becomes
    <registry-name>.azurecr.io.
+   Use the standard **RBAC Registry Permissions** authorization mode, not the
+   optional RBAC + ABAC repository-permissions mode, so the `AcrPull` and
+   `AcrPush` roles below apply directly.
 3. An App Service plan on Linux. Use at least a Basic plan for a reliable
    demo; choose a larger tier only if load testing shows it is necessary.
 4. A Web App on that Linux plan:
