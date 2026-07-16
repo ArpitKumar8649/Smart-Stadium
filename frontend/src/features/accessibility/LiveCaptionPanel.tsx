@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useLiveCaptions } from './useLiveCaptions.ts';
+import { useReducedMotion } from './useReducedMotion.ts';
 
 /**
  * Live captioning for deaf and hard-of-hearing fans. Turns the mic into a
@@ -9,11 +10,12 @@ import { useLiveCaptions } from './useLiveCaptions.ts';
  */
 export function LiveCaptionPanel() {
   const { state, partial, lines, error, start, stop } = useLiveCaptions();
+  const reduceMotion = useReducedMotion();
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
-  }, [lines, partial]);
+    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: reduceMotion ? 'auto' : 'smooth' });
+  }, [lines, partial, reduceMotion]);
 
   const active = state === 'listening' || state === 'connecting';
 

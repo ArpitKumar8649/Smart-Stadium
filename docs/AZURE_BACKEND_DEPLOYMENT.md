@@ -22,8 +22,8 @@ In the Azure portal, create these resources in the same region:
    - Operating system: **Linux**
    - Name: a globally unique API name, for example `concourse-api-yourname`
 
-The project supports Node 20 through 22 (`>=20.11.0 <23`). Select Node 22 LTS,
-not Node 24, so the Azure runtime matches the GitHub Actions build.
+The project supports Node 22 through 24 (`>=22 <25`). Select Node 22 LTS for
+Azure so the runtime matches the GitHub Actions build.
 
 ## 2. Configure Web App environment variables
 
@@ -34,7 +34,7 @@ values from `backend/.env.example`. At minimum:
 NODE_ENV=production
 LOG_LEVEL=info
 DASHSCOPE_API_KEY=<secret>
-ADMIN_DEMO_TOKEN=<secret with at least 12 characters>
+ADMIN_DEMO_TOKEN=<random secret with at least 32 characters>
 CROWD_SIM_ENABLED=true
 ```
 
@@ -43,10 +43,16 @@ Add these when the feature is used:
 ```text
 DASHSCOPE_BASE_URL=https://dashscope-intl.aliyuncs.com/compatible-mode/v1
 GOOGLE_ROUTES_API_KEY=<secret>
-FIREBASE_PROJECT_ID=<firebase-project-id>
-FIREBASE_SERVICE_ACCOUNT_JSON=<single-line service-account JSON>
-ADMIN_UIDS=<space-separated Firebase UIDs>
 ```
+
+`ADMIN_DEMO_TOKEN` currently protects the demo operations console. Generate a
+long random value for production and store it only in Azure. Firebase Admin
+SDK authentication is not part of this implementation, so do not add Firebase
+service-account or UID settings to this backend.
+
+If Google outdoor routing is enabled, restrict its key to the **Routes API**
+and to this Web App's outbound IP addresses. It is a server-side key, so HTTP
+referrer restrictions are not appropriate.
 
 After Firebase Hosting is deployed, set `ALLOWED_ORIGINS` to a comma-separated
 list containing both Firebase hosting domains, for example:
@@ -61,8 +67,18 @@ it. Keep runtime secrets in Azure App Service settings, never in this repository
 or GitHub workflow.
 
 The workflow configures the startup command (`node backend/dist/server.js`),
-Always On, WebSockets, `NODE_ENV=production`, and disables App Service build
-automation because the artifact is already built in GitHub Actions.
+`NODE_ENV=production`, and disables App Service build automation because the
+artifact is already built in GitHub Actions. The current App Service plan does
+not support Always On; the API can cold-start after an idle period.
+
+### Enable WebSockets for live captions
+
+Live captions use `/api/audio/asr` over WebSockets. In Azure Portal, open the
+Web App's **Settings → Configuration → General settings**, set **Web sockets**
+to **On**, and save. The deployment workflow performs the same setting in its
+own Azure CLI step; it intentionally does **not** combine it with Always On,
+which the current plan does not support. After deploying the frontend, test the
+Live captions control from an allowed Firebase or localhost origin.
 
 ## 3. Create GitHub-to-Azure OpenID Connect access
 
@@ -102,12 +118,14 @@ Create these repository variables:
 ```text
 AZURE_RESOURCE_GROUP=rg-concourse-prod
 AZURE_WEBAPP_NAME=<your-web-app-name>
+ALLOWED_ORIGINS=http://localhost:5173,https://concourse-stadium.web.app,https://concourse-stadium.firebaseapp.com
 ```
 
-The workflow deliberately skips its jobs until both non-secret variables exist.
-Once they do, every push to `main` that changes backend, shared, data, package,
-or deployment files builds and deploys the backend. You can also run it manually
-from the **Actions** tab.
+The workflow deliberately skips its jobs until all three non-secret variables
+exist. `ALLOWED_ORIGINS` is required so a backend deployment cannot accidentally
+leave the live Firebase fan app blocked by CORS. Once they do, every push to
+`main` that changes backend, shared, data, package, or deployment files builds
+and deploys the backend. You can also run it manually from the **Actions** tab.
 
 ## 5. Verify the deployment
 

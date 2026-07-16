@@ -1,17 +1,8 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import type { Alert } from '@concourse/shared';
+import { AlertContext } from './alertContextValue.ts';
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? '';
-
-type AlertContextType = {
-  activeAlerts: Alert[];
-  dismissAlert: (id: string) => void;
-};
-
-const AlertContext = createContext<AlertContextType>({
-  activeAlerts: [],
-  dismissAlert: () => {},
-});
 
 export function AlertProvider({ children }: { children: ReactNode }) {
   const [alerts, setAlerts] = useState<Alert[]>([]);
@@ -19,10 +10,12 @@ export function AlertProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let es: EventSource | null = null;
+    let reconnectTimer: number | null = null;
     let mounted = true;
     let retryCount = 0;
 
     const connect = () => {
+      if (!mounted) return;
       es = new EventSource(`${API_BASE}/api/alerts/stream`);
 
       es.onmessage = (event) => {
@@ -48,7 +41,7 @@ export function AlertProvider({ children }: { children: ReactNode }) {
         // Exponential backoff reconnect: 1s, 2s, 4s... max 30s
         const delay = Math.min(1000 * 2 ** retryCount, 30000);
         retryCount++;
-        setTimeout(connect, delay);
+        reconnectTimer = window.setTimeout(connect, delay);
       };
 
       es.onopen = () => {
@@ -60,6 +53,7 @@ export function AlertProvider({ children }: { children: ReactNode }) {
 
     return () => {
       mounted = false;
+      if (reconnectTimer !== null) window.clearTimeout(reconnectTimer);
       es?.close();
     };
   }, []);
@@ -84,8 +78,4 @@ export function AlertProvider({ children }: { children: ReactNode }) {
       {children}
     </AlertContext.Provider>
   );
-}
-
-export function useAlerts() {
-  return useContext(AlertContext);
 }

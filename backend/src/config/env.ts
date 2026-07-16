@@ -14,21 +14,25 @@ const RawEnvSchema = z.object({
   QWEN_MODEL_CHAT: z.string().default('qwen-plus'),
   QWEN_MODEL_VL: z.string().default('qwen-vl-max'),
   QWEN_MODEL_EMBED: z.string().default('text-embedding-v3'),
-  // Max output tokens for chat/concierge completions.
-  QWEN_MAX_TOKENS: z.coerce.number().int().positive().default(64000),
+  // A deliberately modest per-call ceiling keeps public chat responses useful
+  // without allowing one request to consume an unbounded provider quota.
+  QWEN_MAX_TOKENS: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(1_200)
+    .transform((value) => Math.min(value, 2_000)),
   // Reasoning ("thinking") mode for the concierge. off | low | medium | high.
   // Maps to DashScope's enable_thinking + thinking_budget on Qwen3 models.
   QWEN_REASONING: z.enum(['off', 'low', 'medium', 'high']).default('off'),
-
-  FIREBASE_SERVICE_ACCOUNT_JSON: z.string().optional(),
-  FIREBASE_PROJECT_ID: z.string().optional(),
 
   // Google Routes API key for outdoor (GPS → stadium) routing. Optional: without
   // it the find_outdoor_route tool degrades gracefully instead of crashing.
   GOOGLE_ROUTES_API_KEY: z.string().min(1).optional(),
 
-  ADMIN_UIDS: z.string().default(''),
   // Demo/admin console credential. Store only in backend/.env or hosting secrets.
+  // Production should use 32+ random characters; the 12-character floor keeps
+  // existing local hackathon setups compatible alongside the login limiter.
   ADMIN_DEMO_TOKEN: z.string().min(12).optional(),
 
   ALLOWED_ORIGINS: z.string().default('http://localhost:5173'),
@@ -41,6 +45,7 @@ const RawEnvSchema = z.object({
   // LLM concurrency guard (token bucket). See ADR 0007.
   LLM_BUCKET_SIZE: z.coerce.number().int().positive().default(12),
   LLM_BUCKET_REFILL_PER_MIN: z.coerce.number().int().positive().default(12),
+  LLM_MAX_QUEUE: z.coerce.number().int().positive().max(100).default(24),
 });
 
 const parsed = RawEnvSchema.safeParse(process.env);
@@ -56,7 +61,6 @@ export const env = {
   ...raw,
   isDev: raw.NODE_ENV === 'development',
   isProd: raw.NODE_ENV === 'production',
-  adminUids: new Set(raw.ADMIN_UIDS.split(/\s+/).filter(Boolean)),
   allowedOrigins: raw.ALLOWED_ORIGINS.split(',').map((s) => s.trim()).filter(Boolean),
 } as const;
 

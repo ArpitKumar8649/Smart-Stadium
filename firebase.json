@@ -1,7 +1,13 @@
 {
   "hosting": {
     "public": "frontend/dist",
-    "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**",
+      "scenes/**",
+      "trophy.glb"
+    ],
     "rewrites": [
       {
         "source": "**",
@@ -9,6 +15,31 @@
       }
     ],
     "headers": [
+      {
+        "source": "**",
+        "headers": [
+          {
+            "key": "X-Content-Type-Options",
+            "value": "nosniff"
+          },
+          {
+            "key": "Referrer-Policy",
+            "value": "strict-origin-when-cross-origin"
+          },
+          {
+            "key": "X-Frame-Options",
+            "value": "DENY"
+          },
+          {
+            "key": "Content-Security-Policy",
+            "value": "default-src 'self'; base-uri 'self'; object-src 'none'; script-src 'self' 'unsafe-eval' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https://cdnjs.cloudflare.com https://*.tile.openstreetmap.org https://cdn.mappedin.com https://*.cesium.com https://*.googleapis.com https://*.google.com; media-src 'self' blob:; connect-src 'self' https://*.azurewebsites.net wss://*.azurewebsites.net https://*.cesium.com https://*.googleapis.com https://*.google.com; worker-src 'self' blob:; frame-ancestors 'none'; form-action 'self'; upgrade-insecure-requests"
+          },
+          {
+            "key": "Permissions-Policy",
+            "value": "camera=(self), microphone=(self), geolocation=(self), payment=(), usb=()"
+          }
+        ]
+      },
       {
         "source": "/index.html",
         "headers": [

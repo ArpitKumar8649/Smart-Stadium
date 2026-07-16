@@ -4,19 +4,36 @@ import {
   AdminCrowdOverrideRequestSchema,
   AdminIncidentRequestSchema,
   BriefingRequestSchema,
-  type Incident,
+  BriefingSchema,
   type Briefing,
+  type Incident,
 } from '@concourse/shared';
 import { requireAdmin } from '../middleware/admin-auth.js';
 import { getCrowdSimulator } from '../services/crowd/simulator.js';
 import { alertStore } from '../services/alerts/store.js';
 import { getLlm } from '../services/llm/qwen.js';
 import { logger } from '../middleware/logger.js';
+import { LlmCapacityError } from '../services/llm/rate-limit.js';
 
 export const adminRouter: Router = Router();
 
+let demoActive = false;
+
+const GeneratedBriefingSchema = BriefingSchema.pick({
+  headline: true,
+  summary: true,
+  concerns: true,
+  recommendations: true,
+});
+
 // Every route here requires the admin token
 adminRouter.use('/admin', requireAdmin);
+
+// A cheap credential check for the static admin UI. The passcode is entered by
+// an operator and never needs to be embedded in the public frontend bundle.
+adminRouter.get('/admin/session', (_req, res) => {
+  res.json({ ok: true });
+});
 
 /**
  * POST /api/admin/crowd/override
@@ -41,6 +58,7 @@ adminRouter.post('/admin/crowd/override', (req, res) => {
     return;
   }
 
+  invalidateBriefingCache();
   res.json({ ok: true, zone_id, density, source: 'injected' });
 });
 
@@ -58,7 +76,17 @@ adminRouter.post('/admin/incident', (req, res) => {
     return;
   }
 
-  const { venue_id, kind, severity, title, body, affected_zone_id, affected_gate_id, expires_in_minutes } = parsed.data;
+  const {
+    venue_id,
+    kind,
+    severity,
+    title,
+    body,
+    affected_zone_id,
+    affected_node_id,
+    affected_gate_id,
+    expires_in_minutes,
+  } = parsed.data;
 
   const incident: Incident = {
     id: `inc_${randomUUID().replace(/-/g, '').slice(0, 12)}`,
@@ -68,6 +96,7 @@ adminRouter.post('/admin/incident', (req, res) => {
     title,
     body,
     affected_zone_id,
+    affected_node_id,
     affected_gate_id,
     created_at: new Date().toISOString(),
     created_by: 'demo_admin',
@@ -87,9 +116,11 @@ adminRouter.post('/admin/incident', (req, res) => {
     body,
     expires_at: expiresAt,
     affected_zone_id,
+    affected_node_id,
     affected_gate_id,
   });
 
+  invalidateBriefingCache();
   res.json(incident);
 });
 
@@ -100,15 +131,16 @@ adminRouter.post('/admin/incident', (req, res) => {
  */
 adminRouter.post('/admin/demo/enable', (req, res) => {
   const sim = getCrowdSimulator();
-  // Pin the clock to minute 40 and stop time passing
+  // Pin the clock to minute 40 and stop time passing.
   sim.setSpeed(0);
   sim.setSimMinute(40);
+  demoActive = true;
 
-  // Clear any old overrides/briefings
+  // Clear any old overrides/briefings.
   for (const zone of sim.getZones()) {
     sim.clearOverride(zone.id);
   }
-  cachedBriefing = null;
+  invalidateBriefingCache();
 
   res.json({ ok: true, message: 'Demo mode enabled. Simulation clock pinned to minute 40.' });
 });
@@ -120,11 +152,21 @@ adminRouter.post('/admin/demo/enable', (req, res) => {
 adminRouter.post('/admin/demo/disable', (req, res) => {
   const sim = getCrowdSimulator();
   sim.setSpeed(1);
+  demoActive = false;
+  invalidateBriefingCache();
   res.json({ ok: true, message: 'Demo mode disabled. Time is running normally.' });
 });
 
-// Cache for the AI briefing so we don't spam the LLM API on reload
+/** GET /api/admin/demo/status — hydrates the operator UI after a page reload. */
+adminRouter.get('/admin/demo/status', (_req, res) => {
+  res.json({ active: demoActive });
+});
+
+// Cache for the AI briefing so we don't spam the LLM API on reload.
 let cachedBriefing: Briefing | null = null;
+function invalidateBriefingCache(): void {
+  cachedBriefing = null;
+}
 
 /**
  * POST /api/admin/briefing
@@ -141,10 +183,16 @@ adminRouter.post('/admin/briefing', async (req, res) => {
     return;
   }
 
-  const { lang, force_refresh } = parsed.data;
+  const { venue_id, lang, force_refresh } = parsed.data;
 
   // Simple 5 min cache
-  if (!force_refresh && cachedBriefing && (Date.now() - Date.parse(cachedBriefing.generated_at) < 300_000) && cachedBriefing.lang === lang) {
+  if (
+    !force_refresh
+    && cachedBriefing
+    && Date.now() - Date.parse(cachedBriefing.generated_at) < 300_000
+    && cachedBriefing.lang === lang
+    && cachedBriefing.venue_id === venue_id
+  ) {
     res.json(cachedBriefing);
     return;
   }
@@ -194,6 +242,49 @@ Write the human-readable text in this language: ${lang}. Do not invent numbers; 
     top_questions: topQuestions
   });
 
+  const cacheAndSend = (briefing: Briefing): void => {
+    cachedBriefing = briefing;
+    res.json(briefing);
+  };
+
+  const fallbackBriefing = (): Briefing => {
+    const busiest = [...heatmap.zones]
+      .sort((left, right) => right.density - left.density)
+      .slice(0, 3);
+    const concerns = busiest
+      .filter((zone) => zone.density >= 0.75)
+      .map((zone) => ({
+        zone_id: zone.zone_id,
+        concern: `${zone.zone_id} is operating at ${Math.round(zone.density * 100)}% density with an estimated ${zone.wait_seconds}-second wait.`,
+        severity: zone.density >= 0.9 ? 'critical' as const : 'warn' as const,
+        eta_minutes: 15,
+      }));
+    const recommendations = concerns.map((concern) => ({
+      action: `Monitor ${concern.zone_id} and direct fans to lower-density alternatives if conditions worsen.`,
+      affected_zone_id: concern.zone_id,
+      suggested_alert_kind: 'general',
+      reversible: true,
+    }));
+    const now = new Date();
+    return BriefingSchema.parse({
+      id: `brf_${randomUUID().slice(0, 8)}`,
+      venue_id,
+      generated_at: now.toISOString(),
+      window_start: now.toISOString(),
+      window_end: new Date(now.getTime() + 300_000).toISOString(),
+      occupancy_pct,
+      headline: concerns.length > 0
+        ? `${concerns.length} high-density zone${concerns.length === 1 ? '' : 's'} require attention.`
+        : `Operations stable during ${sim.phase().replace('_', ' ')}.`,
+      summary: `Current simulated stadium occupancy is ${occupancy_pct}%. This briefing uses simulated matchday data while AI analysis is unavailable.`,
+      concerns,
+      recommendations,
+      top_fan_questions: topQuestions,
+      model: 'deterministic-telemetry-fallback',
+      lang,
+    });
+  };
+
   try {
     const llm = getLlm();
     const result = await llm.chat({
@@ -209,36 +300,48 @@ Write the human-readable text in this language: ${lang}. Do not invent numbers; 
     // Clean up potential markdown formatting if the model leaked it
     const cleanContent = content.replace(/^```json\s*/i, '').replace(/```\s*$/, '').trim();
 
-    let parsedLlm: any;
+    let parsedLlm: unknown;
     try {
       parsedLlm = JSON.parse(cleanContent);
-    } catch (e) {
-      logger.error({ err: e, content }, 'Failed to parse LLM briefing response');
-      res.status(500).json({ error: { code: 'llm_error', message: 'Failed to generate briefing structure.' } });
+    } catch (err) {
+      logger.warn({ err, content }, 'LLM briefing response was not JSON; using telemetry fallback');
+      cacheAndSend(fallbackBriefing());
+      return;
+    }
+
+    const generated = GeneratedBriefingSchema.safeParse(parsedLlm);
+    if (!generated.success) {
+      logger.warn({ issues: generated.error.issues }, 'LLM briefing response did not match the contract; using telemetry fallback');
+      cacheAndSend(fallbackBriefing());
       return;
     }
 
     const briefing: Briefing = {
       id: `brf_${randomUUID().slice(0, 8)}`,
-      venue_id: 'metlife',
+      venue_id,
       generated_at: new Date().toISOString(),
       window_start: new Date().toISOString(),
       window_end: new Date(Date.now() + 300_000).toISOString(),
       occupancy_pct,
-      headline: parsedLlm.headline || 'Briefing generated with warnings.',
-      summary: parsedLlm.summary || 'Summary unavailable.',
-      concerns: parsedLlm.concerns || [],
-      recommendations: parsedLlm.recommendations || [],
+      headline: generated.data.headline,
+      summary: generated.data.summary,
+      concerns: generated.data.concerns,
+      recommendations: generated.data.recommendations,
       top_fan_questions: topQuestions,
       model: 'qwen-plus',
       lang,
     };
 
-    cachedBriefing = briefing;
-    res.json(briefing);
+    cacheAndSend(briefing);
 
   } catch (err) {
-    logger.error({ err }, 'Briefing generation failed');
-    res.status(500).json({ error: { code: 'internal', message: 'Failed to generate briefing.' } });
+    if (err instanceof LlmCapacityError) {
+      res.status(503).json({
+        error: { code: 'capacity_reached', message: 'The AI briefing is busy. Please try again shortly.' },
+      });
+      return;
+    }
+    logger.error({ err }, 'Briefing generation failed; using telemetry fallback');
+    cacheAndSend(fallbackBriefing());
   }
 });

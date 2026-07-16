@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { geoMercator, geoPath } from 'd3-geo';
 import type { Feature, FeatureCollection, Geometry } from 'geojson';
 import { densityColor, densityLabel, zoneForecast } from './crowdStyle.ts';
+import { useReducedMotion } from '../accessibility/useReducedMotion.ts';
 
 const VIEW_WIDTH = 1000;
 const VIEW_HEIGHT = 700;
@@ -86,6 +87,9 @@ export function MapCanvas({
   onZoneFocus,
 }: MapCanvasProps) {
   const [floors, setFloors] = useState<FloorFeature[]>([]);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [loadAttempt, setLoadAttempt] = useState(0);
+  const reduceMotion = useReducedMotion();
 
   useEffect(() => {
     const controller = new AbortController();
@@ -94,12 +98,17 @@ export function MapCanvas({
         if (!response.ok) throw new Error(`Map geometry failed (${response.status})`);
         return (await response.json()) as FeatureCollection<Geometry, FloorProperties>;
       })
-      .then((data) => setFloors(data.features))
+      .then((data) => {
+        setFloors(data.features);
+        setLoadError(null);
+      })
       .catch((error: unknown) => {
-        if ((error as Error).name !== 'AbortError') console.error('Failed to load map geometry', error);
+        if ((error as Error).name === 'AbortError') return;
+        console.error('Failed to load map geometry', error);
+        setLoadError('The indoor map could not load. You can retry or use the route instructions below.');
       });
     return () => controller.abort();
-  }, []);
+  }, [loadAttempt]);
 
   const rendered = useMemo(() => {
     if (!floors.length) return null;
@@ -128,7 +137,20 @@ export function MapCanvas({
   if (!rendered?.activeFloor || !rendered.activePath) {
     return (
       <div className="flex h-full min-h-[340px] w-full items-center justify-center rounded-2xl border border-surface-800 bg-surface-900">
-        <span className="text-sm text-surface-400">Loading MetLife geometry…</span>
+        {loadError ? (
+          <div className="max-w-sm p-6 text-center">
+            <p className="text-sm text-surface-300" role="alert">{loadError}</p>
+            <button
+              type="button"
+              onClick={() => setLoadAttempt((attempt) => attempt + 1)}
+              className="mt-3 rounded-lg border border-surface-700 px-3 py-2 text-sm font-semibold text-surface-100 hover:border-primary"
+            >
+              Retry map
+            </button>
+          </div>
+        ) : (
+          <span className="text-sm text-surface-400" role="status">Loading MetLife geometry…</span>
+        )}
       </div>
     );
   }
@@ -141,7 +163,7 @@ export function MapCanvas({
 
   return (
     <div className="relative h-full min-h-[340px] w-full overflow-hidden rounded-2xl border border-surface-800 bg-surface-950 shadow-2xl">
-      <svg viewBox={`0 0 ${VIEW_WIDTH} ${VIEW_HEIGHT}`} className="h-full w-full" role="img" aria-label={`${rendered.activeFloor.properties.name} stadium map`}>
+      <svg viewBox={`0 0 ${VIEW_WIDTH} ${VIEW_HEIGHT}`} className="h-full w-full" role="group" aria-label={`${rendered.activeFloor.properties.name} interactive stadium map`}>
         <defs>
           <pattern id="packed-hatch" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
             <line x1="0" y1="0" x2="0" y2="8" stroke="#fff" strokeWidth="2" opacity="0.38" />
@@ -213,7 +235,9 @@ export function MapCanvas({
             strokeDasharray="12 10"
             filter="url(#route-glow)"
           >
-            <animate attributeName="stroke-dashoffset" from="44" to="0" dur="1.8s" repeatCount="indefinite" />
+            {!reduceMotion && (
+              <animate attributeName="stroke-dashoffset" from="44" to="0" dur="1.8s" repeatCount="indefinite" />
+            )}
           </polyline>
         ))}
 
@@ -238,4 +262,3 @@ export function MapCanvas({
     </div>
   );
 }
-

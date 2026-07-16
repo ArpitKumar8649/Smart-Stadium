@@ -16,8 +16,8 @@
  */
 
 import { WebSocket } from 'ws';
-import { createHash } from 'node:crypto';
-import { readFile, writeFile, mkdir } from 'node:fs/promises';
+import { createHash, randomUUID } from 'node:crypto';
+import { readFile, writeFile, mkdir, readdir, rename, stat, unlink } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { env } from '../../config/env.js';
@@ -30,28 +30,110 @@ export const DEFAULT_VOICE = 'longanyang';
 /** Cap a single synthesis so a runaway request can't drain the quota. */
 const MAX_CHARS = 600;
 const SYNTH_TIMEOUT_MS = 25_000;
+const MAX_AUDIO_BYTES = 3 * 1024 * 1024;
 
 const CACHE_DIR = join(tmpdir(), 'concourse-tts-cache');
+const CACHE_TTL_MS = 6 * 60 * 60 * 1_000;
+const MAX_CACHE_ENTRIES = 24;
+const MAX_CACHE_BYTES = 24 * 1024 * 1024;
+const MAX_CACHE_WRITE_QUEUE_BYTES = 12 * 1024 * 1024;
+let cacheWriteQueue = Promise.resolve();
+let queuedCacheWriteBytes = 0;
+const inFlightSyntheses = new Map<string, Promise<Buffer>>();
 
 function cacheKey(text: string, voice: string): string {
   return createHash('sha256').update(`${TTS_MODEL}::${voice}::${text}`).digest('hex').slice(0, 32);
 }
 
-async function readCache(key: string): Promise<Buffer | undefined> {
+interface CachedAudio {
+  audio: Buffer;
+  fresh: boolean;
+}
+
+async function readCache(key: string): Promise<CachedAudio | undefined> {
   try {
-    return await readFile(join(CACHE_DIR, `${key}.mp3`));
+    const path = join(CACHE_DIR, `${key}.mp3`);
+    const metadata = await stat(path);
+    if (metadata.size === 0 || metadata.size > MAX_AUDIO_BYTES) {
+      await unlink(path);
+      return undefined;
+    }
+    return {
+      audio: await readFile(path),
+      fresh: Date.now() - metadata.mtimeMs <= CACHE_TTL_MS,
+    };
   } catch {
     return undefined;
   }
 }
 
-async function writeCache(key: string, audio: Buffer): Promise<void> {
-  try {
-    await mkdir(CACHE_DIR, { recursive: true });
-    await writeFile(join(CACHE_DIR, `${key}.mp3`), audio);
-  } catch (err) {
-    logger.warn({ err }, 'TTS cache write failed (non-fatal)');
+type CachedFile = { path: string; size: number; modifiedAt: number };
+
+async function pruneCache(incomingBytes: number): Promise<void> {
+  const files: CachedFile[] = [];
+  const now = Date.now();
+  const entries = await readdir(CACHE_DIR, { withFileTypes: true });
+
+  for (const entry of entries) {
+    if (!entry.isFile() || !entry.name.endsWith('.mp3')) continue;
+    const path = join(CACHE_DIR, entry.name);
+    try {
+      const metadata = await stat(path);
+      if (now - metadata.mtimeMs > CACHE_TTL_MS || metadata.size > MAX_AUDIO_BYTES) {
+        await unlink(path);
+      } else {
+        files.push({ path, size: metadata.size, modifiedAt: metadata.mtimeMs });
+      }
+    } catch {
+      // A concurrent cache cleanup can remove a file between readdir and stat.
+    }
   }
+
+  files.sort((a, b) => a.modifiedAt - b.modifiedAt);
+  let totalBytes = files.reduce((total, file) => total + file.size, 0);
+  while (files.length >= MAX_CACHE_ENTRIES || totalBytes + incomingBytes > MAX_CACHE_BYTES) {
+    const oldest = files.shift();
+    if (!oldest) break;
+    try {
+      await unlink(oldest.path);
+      totalBytes -= oldest.size;
+    } catch {
+      // The write itself remains useful even if best-effort eviction races.
+    }
+  }
+}
+
+function scheduleCacheWrite(key: string, audio: Buffer): void {
+  if (audio.length > MAX_AUDIO_BYTES || audio.length > MAX_CACHE_BYTES) return;
+  if (queuedCacheWriteBytes + audio.length > MAX_CACHE_WRITE_QUEUE_BYTES) {
+    logger.warn({ bytes: audio.length }, 'TTS cache write queue is full; skipping non-fatal cache write');
+    return;
+  }
+
+  queuedCacheWriteBytes += audio.length;
+  const write = cacheWriteQueue.then(async () => {
+    await mkdir(CACHE_DIR, { recursive: true });
+    await pruneCache(audio.length);
+    const destination = join(CACHE_DIR, `${key}.mp3`);
+    const temporary = join(CACHE_DIR, `.${key}.${randomUUID()}.tmp`);
+    try {
+      await writeFile(temporary, audio);
+      await rename(temporary, destination);
+    } finally {
+      // rename removes the temp file on success; ignore cleanup races/failures.
+      await unlink(temporary).catch(() => undefined);
+    }
+  });
+  // Serialize cache mutation so simultaneous operator requests cannot bypass
+  // the entry/byte budget by racing their eviction passes. Do not await this
+  // best-effort optimization on the HTTP response path.
+  cacheWriteQueue = write
+    .catch((err) => {
+      logger.warn({ err }, 'TTS cache write failed (non-fatal)');
+    })
+    .finally(() => {
+      queuedCacheWriteBytes = Math.max(0, queuedCacheWriteBytes - audio.length);
+    });
 }
 
 export interface SynthesisResult {
@@ -72,14 +154,28 @@ export async function synthesizeSpeech(text: string, voice: string = DEFAULT_VOI
 
   const key = cacheKey(clean, voice);
   const hit = await readCache(key);
-  if (hit) {
+  if (hit?.fresh) {
     logger.info({ chars: clean.length, voice }, 'TTS cache hit (0 quota)');
-    return { audio: hit, cached: true, chars: clean.length };
+    return { audio: hit.audio, cached: true, chars: clean.length };
   }
 
-  const audio = await synthesizeUpstream(clean, voice);
-  await writeCache(key, audio);
-  return { audio, cached: false, chars: clean.length };
+  let synthesis = inFlightSyntheses.get(key);
+  if (!synthesis) {
+    synthesis = synthesizeUpstream(clean, voice);
+    inFlightSyntheses.set(key, synthesis);
+    void synthesis.finally(() => inFlightSyntheses.delete(key)).catch(() => undefined);
+  }
+  try {
+    const audio = await synthesis;
+    scheduleCacheWrite(key, audio);
+    return { audio, cached: false, chars: clean.length };
+  } catch (err) {
+    if (hit) {
+      logger.warn({ err, chars: clean.length, voice }, 'TTS upstream failed; serving stale cache');
+      return { audio: hit.audio, cached: true, chars: clean.length };
+    }
+    throw err;
+  }
 }
 
 /** One CosyVoice WebSocket synthesis. Resolves to the full MP3 Buffer. */
@@ -90,6 +186,7 @@ function synthesizeUpstream(text: string, voice: string): Promise<Buffer> {
     });
     const taskId = `tts-${createHash('sha1').update(text + voice).digest('hex').slice(0, 12)}`;
     const chunks: Buffer[] = [];
+    let audioBytes = 0;
     let settled = false;
 
     const timer = setTimeout(() => finish(new Error('TTS synthesis timed out.')), SYNTH_TIMEOUT_MS);
@@ -117,7 +214,15 @@ function synthesizeUpstream(text: string, voice: string): Promise<Buffer> {
     });
 
     ws.on('message', (data: Buffer, isBinary: boolean) => {
-      if (isBinary) { chunks.push(data); return; }
+      if (isBinary) {
+        audioBytes += data.byteLength;
+        if (audioBytes > MAX_AUDIO_BYTES) {
+          finish(new Error('TTS audio exceeded the configured size limit.'));
+          return;
+        }
+        chunks.push(data);
+        return;
+      }
       let m: { header?: { event?: string; error_message?: string } };
       try { m = JSON.parse(data.toString()); } catch { return; }
       const ev = m.header?.event;

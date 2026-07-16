@@ -58,7 +58,10 @@ export function buildSystemPrompt(ctx: PromptContext): string {
   if (ctx.lang) lines.push(`- Reply in this language: ${ctx.lang}`);
   if (ctx.matchLabel) lines.push(`- Today's match: ${ctx.matchLabel}`);
   if (ctx.accessibility && ctx.accessibility.length > 0) {
-    lines.push(`- Accessibility preferences: ${ctx.accessibility.join(', ')} (route step-free)`);
+    lines.push(`- Accessibility preferences: ${ctx.accessibility.join(', ')}`);
+  }
+  if (ctx.accessibility?.includes('screen_reader')) {
+    lines.push('- Use concise, well-structured text suitable for screen-reader navigation.');
   }
   if (ctx.context?.location) {
     lines.push(`- GPS Location: ${JSON.stringify(ctx.context.location)}`);

@@ -62,5 +62,5 @@ export interface LlmProvider {
   /** Non-streaming convenience (used by the admin briefing + eval harness). */
   chat(opts: ChatOptions): Promise<{ message: ChatMessage; usage?: LlmUsage }>;
   /** Multimodal: describe/translate an image (sign reader). */
-  describeImage(imageB64: string, prompt: string, lang: string): Promise<string>;
+  describeImage(imageB64: string, prompt: string, lang: string, signal?: AbortSignal): Promise<string>;
 }

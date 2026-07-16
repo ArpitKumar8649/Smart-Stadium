@@ -32,6 +32,7 @@ class AlertStore {
       ...(alert.action_href ? { action_href: alert.action_href } : {}),
       ...(alert.expires_at ? { expires_at: alert.expires_at } : {}),
       ...(alert.affected_zone_id ? { affected_zone_id: alert.affected_zone_id } : {}),
+      ...(alert.affected_node_id ? { affected_node_id: alert.affected_node_id } : {}),
       ...(alert.affected_gate_id ? { affected_gate_id: alert.affected_gate_id } : {}),
     };
 
@@ -53,6 +54,15 @@ class AlertStore {
     return this.alerts
       .filter((alert) => !alert.expires_at || Date.parse(alert.expires_at) > now)
       .slice(0, limit);
+  }
+
+  /** Route nodes with an active, temporary advisory. The navigation endpoint
+   * consumes this small projection rather than coupling to alert internals. */
+  activeAffectedNodeIds(): ReadonlySet<string> {
+    return new Set(
+      this.recentAlerts(50)
+        .flatMap((alert) => alert.affected_node_id ? [alert.affected_node_id] : []),
+    );
   }
 
   recentIncidents(limit = 10): Incident[] {

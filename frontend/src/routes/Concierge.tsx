@@ -7,6 +7,8 @@ import { SignReader } from '../features/accessibility/SignReader.tsx';
 import { LiveCaptionPanel } from '../features/accessibility/LiveCaptionPanel.tsx';
 import { ConcourseMap } from '../features/concierge/ConcourseMap.tsx';
 import { parseSectionRef } from '../features/concierge/floorData.ts';
+import { useA11y } from '../features/accessibility/useA11y.ts';
+import { A11yTogglePanel } from '../features/accessibility/A11yTogglePanel.tsx';
 
 const LANGS = [
   { code: 'en', label: 'English' },
@@ -40,13 +42,19 @@ function makeSessionId() {
 export default function Concierge() {
   const sessionId = useMemo(makeSessionId, []);
   const { messages, busy, send } = useConcierge(sessionId);
+  const { prefs } = useA11y();
   const [input, setInput] = useState('');
   const [lang, setLang] = useState('en');
+  const [announcement, setAnnouncement] = useState('');
   const scrollRef = useRef<HTMLDivElement>(null);
+  const lastAnnouncedMessageId = useRef<string | null>(null);
 
   // GPS State
   const [gps, setGps] = useState<{lat: number, lng: number} | null>(null);
   const [gpsRequested, setGpsRequested] = useState(false);
+  const [gpsError, setGpsError] = useState<string | null>(null);
+  const [shareLocationForRequest, setShareLocationForRequest] = useState(false);
+  const [mobileMapOpen, setMobileMapOpen] = useState(false);
 
   // See if there's an outdoor route in the recent messages
   const lastOutdoorRouteResult = useMemo(() => {
@@ -86,20 +94,48 @@ export default function Concierge() {
     return null;
   }, [messages]);
 
+  const accessibility = useMemo(() => [
+    ...(prefs.step_free ? ['step_free'] : []),
+    ...(prefs.sensory_safe ? ['sensory_safe'] : []),
+    ...(prefs.large_text ? ['large_text'] : []),
+    ...(prefs.reduce_motion ? ['reduce_motion'] : []),
+    ...(prefs.screen_reader ? ['screen_reader'] : []),
+  ], [prefs]);
+
   const requestGps = () => {
     setGpsRequested(true);
-    if ('geolocation' in navigator) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => setGps({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-        (err) => console.warn('GPS error:', err),
-        { enableHighAccuracy: true, timeout: 5000 }
-      );
+    setGpsError(null);
+    if (!('geolocation' in navigator)) {
+      setGpsRequested(false);
+      setGpsError('Location sharing is not supported by this browser. You can set a location on the map instead.');
+      return;
     }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setGps({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+        setGpsRequested(false);
+      },
+      () => {
+        setGpsRequested(false);
+        setGpsError('Location was unavailable. Check browser permission or set a location on the map.');
+      },
+      { enableHighAccuracy: true, timeout: 5000 },
+    );
   };
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
   }, [messages]);
+
+  useEffect(() => {
+    if (busy) return;
+    const latestReply = [...messages].reverse().find((message) =>
+      message.role === 'assistant' && !message.streaming && message.text.trim().length > 0,
+    );
+    if (!latestReply || latestReply.id === lastAnnouncedMessageId.current) return;
+    lastAnnouncedMessageId.current = latestReply.id;
+    setAnnouncement(`Concourse replied: ${latestReply.text}`);
+  }, [busy, messages]);
 
   // Keep <html lang>/dir in sync with the chosen language (WCAG + RTL for Arabic).
   useEffect(() => {
@@ -118,13 +154,27 @@ export default function Concierge() {
     const t = text.trim();
     if (!t || busy) return;
     setInput('');
-    void send(t, lang, undefined, gps || undefined);
+    // Coordinates are optional and only leave the device when the fan explicitly
+    // selects this request-level sharing control for an outdoor-route question.
+    const requestLocation = shareLocationForRequest ? gps ?? undefined : undefined;
+    void send(t, lang, undefined, requestLocation, accessibility);
+    setShareLocationForRequest(false);
+  };
+
+  const handleSignDescription = (description: string) => {
+    void send(
+      `I saw a sign that says: ${description}. What does this mean?`,
+      lang,
+      undefined,
+      undefined,
+      accessibility,
+    );
   };
 
   const empty = messages.length === 0;
 
   return (
-    <div className="mx-auto flex h-[100dvh] max-w-6xl flex-col px-4 md:flex-row md:gap-6">
+    <main id="main-content" tabIndex={-1} className="mx-auto flex h-[100dvh] max-w-6xl flex-col px-4 md:flex-row md:gap-6">
       {/* Chat Column */}
       <div className="flex h-full flex-col md:w-[450px] shrink-0">
         <header className="flex items-center justify-between py-4">
@@ -154,7 +204,7 @@ export default function Concierge() {
           ref={scrollRef}
           className="flex-1 space-y-4 overflow-y-auto py-4"
           role="log"
-          aria-live="polite"
+          aria-live="off"
         >
           {empty ? (
             <div className="flex h-full flex-col items-center justify-center gap-6 text-center">
@@ -179,20 +229,21 @@ export default function Concierge() {
 
               {/* GPS Opt-in */}
               {!gps && (
-                <button
-                  onClick={requestGps}
-                  className="w-full rounded-xl border border-primary-800/50 bg-primary-950/30 px-4 py-3 text-sm font-semibold text-primary-300 transition hover:bg-primary-900/50"
-                >
-                  {gpsRequested ? 'Locating...' : '📍 Share Location for Outdoor Routes'}
-                </button>
+                <div className="w-full">
+                  <button
+                    onClick={requestGps}
+                    className="w-full rounded-xl border border-primary-800/50 bg-primary-950/30 px-4 py-3 text-sm font-semibold text-primary-300 transition hover:bg-primary-900/50"
+                  >
+                    {gpsRequested ? 'Locating…' : '📍 Share Location for Outdoor Routes'}
+                  </button>
+                  {gpsError && <p className="mt-2 text-sm text-red-300" role="alert">{gpsError}</p>}
+                </div>
               )}
 
               <div className="w-full sm:w-1/2">
                 <SignReader
                   lang={lang}
-                  onDescription={(desc) => {
-                    void send(`I saw a sign that says: ${desc}. What does this mean?`, lang);
-                  }}
+                  onDescription={handleSignDescription}
                 />
               </div>
 
@@ -202,6 +253,49 @@ export default function Concierge() {
             </div>
           ) : (
             messages.map((m) => <MessageBubble key={m.id} msg={m} />)
+          )}
+        </div>
+
+        <div className="sr-only" role="status" aria-live="polite">{announcement}</div>
+
+        <details className="mb-2 shrink-0 rounded-xl border border-surface-800 bg-surface-900 px-4 py-3">
+          <summary className="cursor-pointer text-sm font-semibold text-surface-100">Accessibility tools & preferences</summary>
+          <div className="mt-3 grid gap-3">
+            <A11yTogglePanel />
+            {!empty && (
+              <>
+                <SignReader lang={lang} onDescription={handleSignDescription} />
+                <LiveCaptionPanel />
+              </>
+            )}
+          </div>
+        </details>
+
+        <div className="mb-2 shrink-0 md:hidden">
+          <button
+            type="button"
+            onClick={() => setMobileMapOpen((open) => !open)}
+            aria-expanded={mobileMapOpen}
+            aria-controls="mobile-map-and-route"
+            className="flex min-h-11 w-full items-center justify-between rounded-xl border border-surface-700 bg-surface-900 px-4 py-2.5 text-left text-sm font-semibold text-surface-100"
+          >
+            <span>Map &amp; route</span>
+            <span aria-hidden="true">{mobileMapOpen ? '−' : '+'}</span>
+          </button>
+          {mobileMapOpen && (
+            <section id="mobile-map-and-route" className="mt-2 h-96 overflow-hidden rounded-xl border border-surface-800" aria-label="Map and route">
+              <ConcourseMap
+                userLocation={gps}
+                encodedPolyline={lastOutdoorRouteResult}
+                focusSection={focusSection}
+                prefer2d
+                onSetLocation={(loc) => {
+                  setGps(loc);
+                  setGpsRequested(false);
+                  setGpsError(null);
+                }}
+              />
+            </section>
           )}
         </div>
 
@@ -235,12 +329,27 @@ export default function Concierge() {
             </div>
 
             <div id="main" className="relative group w-full flex items-center bg-[#010201] rounded-lg">
+              {gps && (
+                <button
+                  type="button"
+                  onClick={() => setShareLocationForRequest((current) => !current)}
+                  aria-pressed={shareLocationForRequest}
+                  title="Share your saved location with this request only"
+                  className={`ml-2 shrink-0 rounded-md px-2 py-1 text-xs font-semibold transition ${
+                    shareLocationForRequest
+                      ? 'bg-primary text-surface-950'
+                      : 'bg-surface-800 text-surface-300 hover:bg-surface-700'
+                  }`}
+                >
+                  📍
+                </button>
+              )}
               <input
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 placeholder="Ask about the stadium…"
-                className="bg-transparent border-none w-full h-[56px] rounded-lg text-white px-4 text-[15px] focus:outline-none focus:ring-0 focus-visible:ring-0 focus-visible:ring-offset-0 placeholder-gray-400"
-                aria-label="Message Concourse"
+                className="bg-transparent border-none w-full h-[56px] rounded-lg px-4 text-[15px] text-white placeholder-gray-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-surface-950"
+                aria-label={shareLocationForRequest ? 'Message Concourse with location shared for this request' : 'Message Concourse'}
               />
               <div id="pink-mask" className="pointer-events-none w-[30px] h-[20px] absolute bg-[#cf30aa] top-[10px] left-[5px] blur-2xl opacity-80 transition-all duration-2000 group-hover:opacity-0"></div>
               <div className="absolute h-[42px] w-[40px] overflow-hidden top-[7px] right-[7px] rounded-lg
@@ -274,6 +383,6 @@ export default function Concierge() {
           }}
         />
       </div>
-    </div>
+    </main>
   );
 }

@@ -45,15 +45,19 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Build shared API contracts
+        run: npm run build --workspace=shared
+
+      - name: Test backend contracts before frontend deployment
+        run: npm run test --workspace=backend
+
       - name: Build the production frontend
         env:
           # Vite embeds VITE_* values in the browser bundle. These must be
           # public values, never server credentials or private API keys.
           VITE_API_BASE: ${{ vars.VITE_API_BASE }}
-          VITE_ADMIN_DEMO_TOKEN: ${{ vars.VITE_ADMIN_DEMO_TOKEN }}
           VITE_CESIUM_ION_TOKEN: ${{ vars.VITE_CESIUM_ION_TOKEN }}
         run: |
-          npm run build --workspace=shared
           npm run build --workspace=frontend
 
       - name: Deploy to Firebase Hosting live channel
@@ -63,3 +67,15 @@ jobs:
           projectId: ${{ vars.FIREBASE_PROJECT_ID }}
           channelId: live
           entryPoint: .
+
+      - name: Smoke-test hosted app and Azure CORS
+        env:
+          FRONTEND_ORIGIN: https://${{ vars.FIREBASE_PROJECT_ID }}.web.app
+          API_BASE: ${{ vars.VITE_API_BASE }}
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --head "$FRONTEND_ORIGIN/navigate" >/dev/null
+          headers=$(curl --fail --silent --show-error --dump-header - --output /dev/null \
+            --header "Origin: $FRONTEND_ORIGIN" "$API_BASE/api/health" | tr -d '\r')
+          printf '%s\n' "$headers" | grep --fixed-strings --ignore-case "access-control-allow-origin: $FRONTEND_ORIGIN" >/dev/null
+          printf '%s\n' "$headers" | grep --fixed-strings --ignore-case 'access-control-allow-credentials: true' >/dev/null

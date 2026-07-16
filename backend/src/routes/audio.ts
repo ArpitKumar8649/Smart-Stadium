@@ -16,8 +16,15 @@ import { z } from 'zod';
 import { getLlm } from '../services/llm/qwen.js';
 import { synthesizeSpeech, DEFAULT_VOICE } from '../services/audio/tts.js';
 import { logger } from '../middleware/logger.js';
+import { requireAdmin } from '../middleware/admin-auth.js';
+import { LlmCapacityError } from '../services/llm/rate-limit.js';
 
 export const audioRouter: Router = Router();
+
+// PA generation consumes paid AI quota and is an operator action, not a
+// public fan endpoint. The frontend supplies this credential only from the
+// authenticated admin page's in-memory state.
+audioRouter.use('/audio/tts', requireAdmin);
 
 const TtsRequestSchema = z.object({
   text: z.string().min(1).max(600),
@@ -84,9 +91,15 @@ audioRouter.post('/audio/tts', async (req, res) => {
     res.setHeader('X-TTS-Text', encodeURIComponent(spoken));
     res.status(200).send(audio);
   } catch (err) {
+    if (err instanceof LlmCapacityError) {
+      res.status(503).json({
+        error: { code: 'capacity_reached', message: 'Speech translation is busy. Please try again shortly.' },
+      });
+      return;
+    }
     logger.error({ err }, 'TTS request failed');
     res.status(502).json({
-      error: { code: 'tts_error', message: err instanceof Error ? err.message : 'Speech synthesis failed.' },
+      error: { code: 'tts_error', message: 'Speech service is temporarily unavailable. Please try again.' },
     });
   }
 });

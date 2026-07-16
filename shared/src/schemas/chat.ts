@@ -6,18 +6,33 @@ export type ChatRole = z.infer<typeof ChatRoleSchema>;
 
 export const ChatHistoryMessageSchema = z.object({
   role: z.enum(['user', 'assistant']),
-  content: z.string(),
+  content: z.string().min(1).max(2000),
 });
 export type ChatHistoryMessage = z.infer<typeof ChatHistoryMessageSchema>;
 
+export const ChatAccessibilityPreferenceSchema = z.enum([
+  'step_free',
+  'sensory_safe',
+  'large_text',
+  'reduce_motion',
+  'screen_reader',
+]);
+export type ChatAccessibilityPreference = z.infer<typeof ChatAccessibilityPreferenceSchema>;
+
 export const ChatRequestSchema = z.object({
-  session_id: z.string().min(1),
+  session_id: z.string().min(1).max(128),
   message: z.string().min(1).max(2000),
-  history: z.array(ChatHistoryMessageSchema).optional(),
+  history: z.array(ChatHistoryMessageSchema).max(10).optional(),
   lang: z.enum(SUPPORTED_LOCALES).optional(),
-  image_b64: z.string().optional(),
-  location_node_id: z.string().optional(),
-  context: z.record(z.unknown()).optional(),
+  accessibility: z.array(ChatAccessibilityPreferenceSchema).max(5).optional(),
+  image_b64: z.string().max(1_800_000).optional(),
+  location_node_id: z.string().min(1).max(160).optional(),
+  context: z.object({
+    location: z.object({
+      lat: z.number().finite().min(-90).max(90),
+      lng: z.number().finite().min(-180).max(180),
+    }).strict().optional(),
+  }).strict().optional(),
 });
 export type ChatRequest = z.infer<typeof ChatRequestSchema>;
 

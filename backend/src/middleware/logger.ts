@@ -11,7 +11,6 @@ const baseOptions: LoggerOptions = {
       'req.body.image_b64',
       'req.body.imageBase64',
       'DASHSCOPE_API_KEY',
-      'FIREBASE_SERVICE_ACCOUNT_JSON',
     ],
     censor: '[REDACTED]',
   },

@@ -16,6 +16,8 @@ export interface GraphIndex {
 
 /** Optional hook the crowd simulator wires in later; returns extra seconds for entering a node. */
 export type CrowdPenalty = (nodeId: string) => number;
+/** Optional operational exclusions, for example a temporarily closed route node. */
+export type BlockedNode = (nodeId: string) => boolean;
 
 /**
  * Penalty (seconds) added to a non-step-free edge in `step_free` mode. Large enough
@@ -188,10 +190,11 @@ export function route(
   toNodeId: string,
   mode: RoutingMode,
   crowdPenalty: CrowdPenalty = () => 0,
+  blockedNode: BlockedNode = () => false,
 ): RouteResponse | null {
   const start = graph.nodes.get(fromNodeId);
   const goal = graph.nodes.get(toNodeId);
-  if (!start || !goal) return null;
+  if (!start || !goal || blockedNode(fromNodeId) || blockedNode(toNodeId)) return null;
 
   // Trivial route: already at the destination.
   if (fromNodeId === toNodeId) {
@@ -232,7 +235,7 @@ export function route(
     if (!edges) continue;
 
     for (const edge of edges) {
-      if (closed.has(edge.to)) continue;
+      if (closed.has(edge.to) || blockedNode(edge.to)) continue;
       const tentative = g + edgeWeight(edge, mode, crowdPenalty);
       if (tentative < (gScore.get(edge.to) ?? Infinity)) {
         cameFrom.set(edge.to, { prev: current, edge });

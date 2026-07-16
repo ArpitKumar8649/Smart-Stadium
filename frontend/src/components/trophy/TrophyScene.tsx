@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, Suspense, type RefOb
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { useGLTF, Environment, ContactShadows } from '@react-three/drei';
 import { KTX2Loader, type GLTFLoader } from 'three-stdlib';
+import { useReducedMotion } from '../../features/accessibility/useReducedMotion.ts';
 
 /* ─────────────────────────────────────────────────────────
  *  TrophyScene
@@ -111,7 +112,7 @@ function useTypingLoop(
 
 // ── Inner 3D model component ─────────────────────────────
 
-function TrophyModel() {
+function TrophyModel({ reduceMotion }: { reduceMotion: boolean }) {
   const gl = useThree((state) => state.gl);
   const ktx2Loader = useMemo(
     () => new KTX2Loader().setTranscoderPath('/basis/').setWorkerLimit(1).detectSupport(gl),
@@ -122,8 +123,9 @@ function TrophyModel() {
     [ktx2Loader],
   );
   const { scene } = useGLTF(TROPHY_MODEL_URL, false, true, extendLoader);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const groupRef = useRef<any>(null);
+  // The workspace currently resolves two compatible Three type packages. Keep
+  // the ref structural so it remains type-safe without coupling to either copy.
+  const groupRef = useRef<{ rotation: { y: number } } | null>(null);
 
   useEffect(
     () => () => {
@@ -133,17 +135,34 @@ function TrophyModel() {
   );
 
   useFrame((_, delta) => {
-    if (!groupRef.current) return;
+    if (!groupRef.current || reduceMotion) return;
 
     // Continuous slow Y rotation (trophy spin)
     groupRef.current.rotation.y += delta * 0.4;
   });
 
   return (
-    <group ref={groupRef} position={[0, 0, 0]}>
+    <group ref={groupRef as never} position={[0, 0, 0]}>
       <primitive object={scene} scale={1.8} />
     </group>
   );
+}
+
+function useHandsetQualityTier(): boolean {
+  const [isHandset, setIsHandset] = useState(false);
+
+  useEffect(() => {
+    const media = window.matchMedia('(max-width: 767px)');
+    const sync = () => {
+      const deviceMemory = (navigator as Navigator & { deviceMemory?: number }).deviceMemory;
+      setIsHandset(media.matches || (deviceMemory !== undefined && deviceMemory <= 4));
+    };
+    sync();
+    media.addEventListener('change', sync);
+    return () => media.removeEventListener('change', sync);
+  }, []);
+
+  return isHandset;
 }
 
 // ── Outer wrapper with Intersection Observer trigger ─────
@@ -151,7 +170,9 @@ function TrophyModel() {
 export default function TrophyScene() {
   const containerRef = useRef<HTMLDivElement>(null);
   const active = useTrophyActive(containerRef);
-  const displayed = useTypingLoop('FIFA WORLD CUP 2026', active, 150, 80, 1500, 500);
+  const reduceMotion = useReducedMotion();
+  const handset = useHandsetQualityTier();
+  const displayed = useTypingLoop('FIFA WORLD CUP 2026', active && !reduceMotion, 150, 80, 1500, 500);
 
   return (
     <div
@@ -169,7 +190,7 @@ export default function TrophyScene() {
             letterSpacing: '0.15em',
           }}
         >
-          {displayed}
+          {reduceMotion ? 'FIFA WORLD CUP 2026' : displayed}
           <span className="inline-block w-[3px] animate-pulse bg-white" style={{ height: '1em', marginLeft: '2px', verticalAlign: 'text-bottom' }}>&nbsp;</span>
         </h2>
       </div>
@@ -182,7 +203,9 @@ export default function TrophyScene() {
       {active && (
         <Canvas
           camera={{ position: [0, 2.5, 6], fov: 40 }}
-          gl={{ antialias: true, alpha: true }}
+          dpr={handset ? [1, 1.25] : [1, 1.75]}
+          frameloop={reduceMotion ? 'demand' : 'always'}
+          gl={{ antialias: !handset, alpha: true }}
           style={{ background: 'transparent' }}
         >
           <ambientLight intensity={0.6} />
@@ -191,13 +214,15 @@ export default function TrophyScene() {
           <pointLight position={[0, 3, 0]} intensity={0.8} color="#FFC300" />
 
           <Suspense fallback={null}>
-            <TrophyModel />
+            <TrophyModel reduceMotion={reduceMotion} />
             <ContactShadows
               position={[0, 0, 0]}
               opacity={0.5}
               scale={8}
               blur={2}
               far={4}
+              frames={1}
+              resolution={handset ? 128 : 256}
             />
             <Environment preset="city" />
           </Suspense>

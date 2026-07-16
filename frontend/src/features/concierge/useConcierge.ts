@@ -1,4 +1,5 @@
 import { useCallback, useRef, useState } from 'react';
+import type { ChatEvent } from '@concourse/shared';
 
 export type ToolChip = { id: string; name: string; summary?: string; ok?: boolean };
 
@@ -10,14 +11,9 @@ export type ChatMessage = {
   streaming?: boolean;
 };
 
-type StreamEvent =
-  | { type: 'token'; text: string; index?: number }
-  | { type: 'toolCall'; name: string; args: Record<string, unknown>; id: string }
-  | { type: 'toolResult'; name: string; id: string; ok: boolean; summary?: string }
-  | { type: 'done'; usage?: { input_tokens: number; output_tokens: number } }
-  | { type: 'error'; code: string; message: string };
-
 const API_BASE = import.meta.env.VITE_API_BASE ?? '';
+const MAX_HISTORY_MESSAGES = 10;
+const MAX_HISTORY_CONTENT = 2_000;
 
 let idSeq = 0;
 const nextId = () => `m${Date.now()}_${idSeq++}`;
@@ -37,7 +33,13 @@ export function useConcierge(sessionId: string) {
   historyRef.current = messages;
 
   const send = useCallback(
-    async (text: string, lang?: string, locationNodeId?: string, gpsCoords?: {lat: number, lng: number}) => {
+    async (
+      text: string,
+      lang?: string,
+      locationNodeId?: string,
+      gpsCoords?: {lat: number, lng: number},
+      accessibility?: string[],
+    ) => {
       if (!text.trim() || busy) return;
       setBusy(true);
 
@@ -45,11 +47,15 @@ export function useConcierge(sessionId: string) {
       const asstId = nextId();
       const asstMsg: ChatMessage = { id: asstId, role: 'assistant', text: '', tools: [], streaming: true };
 
-      // Capture current history before we append the new messages
-      const historyToSent = historyRef.current.map(m => ({
-        role: m.role,
-        content: m.text
-      }));
+      // Keep only API-valid completed turns. Empty placeholders can occur when
+      // a stream is cancelled, and output tokens are not a character limit.
+      const historyToSend = historyRef.current
+        .filter((message) => !message.streaming && message.text.trim().length > 0)
+        .slice(-MAX_HISTORY_MESSAGES)
+        .map((message) => ({
+          role: message.role,
+          content: message.text.trim().slice(0, MAX_HISTORY_CONTENT),
+        }));
 
       setMessages((m) => [...m, userMsg, asstMsg]);
 
@@ -60,13 +66,14 @@ export function useConcierge(sessionId: string) {
       abortRef.current = ctrl;
 
       try {
-        const reqBody: any = {
+        const reqBody: Record<string, unknown> = {
           session_id: sessionId,
           message: text,
-          history: historyToSent,
+          ...(historyToSend.length ? { history: historyToSend } : {}),
         };
         if (lang) reqBody.lang = lang;
         if (locationNodeId) reqBody.location_node_id = locationNodeId;
+        if (accessibility?.length) reqBody.accessibility = accessibility;
         if (gpsCoords) {
           reqBody.context = { location: gpsCoords };
         }
@@ -101,9 +108,9 @@ export function useConcierge(sessionId: string) {
             if (!line) continue;
             const json = line.slice(5).trim();
             if (!json || json === '[DONE]') continue;
-            let ev: StreamEvent;
+            let ev: ChatEvent;
             try {
-              ev = JSON.parse(json) as StreamEvent;
+              ev = JSON.parse(json) as ChatEvent;
             } catch {
               continue;
             }
@@ -132,7 +139,7 @@ export function useConcierge(sessionId: string) {
   return { messages, busy, send, stop };
 }
 
-function applyEvent(ev: StreamEvent, patch: (fn: (m: ChatMessage) => ChatMessage) => void) {
+function applyEvent(ev: ChatEvent, patch: (fn: (m: ChatMessage) => ChatMessage) => void) {
   switch (ev.type) {
     case 'token':
       patch((m) => ({ ...m, text: m.text + ev.text }));

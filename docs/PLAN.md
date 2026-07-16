@@ -7,6 +7,12 @@
 
 This document is the concatenation of five focused planning sections, produced in parallel by dedicated agents.
 
+> **Historical planning record — not submission evidence:** this file preserves
+> early ideas, discarded routes, and proposals that were not shipped. Do not
+> use it to describe the final app or deployment. The canonical submission
+> documentation is [README.md](../README.md), [evaluation evidence](EVALUATION.md),
+> and the deployment guides in this folder.
+
 **Table of contents**
 1. Foundation, Repo Structure, Dev Environment, Claude Code Workflow
 2. Data Models + AI Core (Venue Graph, Qwen Tools, System Prompt, A*, RAG)
@@ -4285,43 +4291,35 @@ Voice: personal, specific, honest. First person singular. No breathless hype. Ev
 
 ---
 
-## 4. LinkedIn Post (Final Copy, ~1500 chars)
+## 4. LinkedIn Post (Final Copy)
 
-```
-I spent 12 days building an AI companion for FIFA World Cup 2026 fans at MetLife Stadium. Here is the moment it clicked for me.
+```text
+The most important stadium AI question is rarely “Where is my seat?”
 
-A friend tested it in Bengali. She typed "closest step-free restroom from Section 132 — my mom uses a cane."
+It is: “My mother cannot use stairs. Which restroom can we reach safely before the queue gets worse?”
 
-Twelve seconds later Concourse had:
-- detected the language
-- routed through a graph that excludes stairs
-- read the turn-by-turn back in Bengali via the browser
-- flagged that Concourse C was crowded and offered a longer but calmer path
+That question shaped Concourse.
 
-No app store. No credit card. Just a URL.
+I built Concourse as a smart-stadium companion for PromptWars Virtual Challenge 4: a fan can ask in their preferred language, choose a step-free, sensory-safe, or low-crowd route, read a confusing sign with their camera, and get a clear next step on a phone.
 
-Concourse is a unified GenAI concierge for the tournament that's live right now. One Qwen backbone powers a multilingual chat + voice agent, indoor A* routing, live crowd awareness, an accessibility mode with camera sign-reading, and proactive nudges like "leave now to catch NJ Transit." An /admin view lets ops inject an incident and watch every fan client reroute in real time.
+The important part is what happens underneath the answer. Qwen models handle the conversation, while deterministic tools resolve venue facts. A bundled stadium graph calculates each route; the assistant is designed to ground venue answers in those tools instead of presenting a guess as a direction.
 
-Built for PromptWars Virtual Challenge 4 (Google Cloud x Hack2Skill) with:
-- Claude Code as the agentic IDE (Qwen 3 Pro)
-- Qwen 3.7 Plus Flash + Pro via DashScope
-- Firebase Hosting + Firestore + Auth
-- Azure App Service
-- React 18 + TypeScript + PWA
-- Web Speech API for voice, everywhere
+There is an operations side too. In the running demo, an authenticated operator can inject a closure that sends an alert to connected navigation views, or a crowd spike that updates the heatmap. Fans can then re-plan with the latest simulated conditions. Crowd conditions are visibly labelled as simulated because trust matters as much as the demo moment.
 
-Live: <URL>
-Blog with the deep dive: <URL>
-Repo: <URL>
+I cared a lot about making this work for real people under real constraints: accessibility, language, mobile battery, crowded networks, and the anxiety of not knowing where to go.
 
-Grateful to the Hack2Skill team and the Claude Code preview team.
+Built with React + TypeScript, Azure, a Firebase Hosting deployment workflow, and Qwen models.
 
-#PromptWarsVirtual #GoogleClaude Code #Qwen #FIFAWorldCup #BuildInPublic
+Repo: https://github.com/ArpitKumar8649/Smart-Stadium
+
+@googlefordevelopers @hack2skill
+
+#BuildwithAI #PromptWarsVirtual #Challenge4 #BuildInPublic #Qwen
 ```
 
-Character count target ~1490 (LinkedIn shows "see more" around 210 chars, so the Bengali moment must land in the first 3 lines — it does).
-
-Post at **Sunday 8pm IST** on Day 13 (post-submission) — highest LinkedIn engagement window for India / US overlap.
+Use the demo video as the first attachment and the build/setup photo as the
+second. Keep the first three lines exactly as written so the story lands before
+LinkedIn collapses the post.
 
 ---
 

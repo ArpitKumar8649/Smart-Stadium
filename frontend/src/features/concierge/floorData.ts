@@ -1,4 +1,5 @@
 import { Cartesian3, PolygonHierarchy, Color } from 'cesium';
+import { NavigationRouteResponseSchema, type NavigationRouteResponse } from '@concourse/shared';
 import type { Feature, FeatureCollection, Geometry, Polygon, MultiPolygon } from 'geojson';
 import { getCachedRoute, saveRouteToCache } from '../../lib/stadiumCache.ts';
 
@@ -203,14 +204,14 @@ export async function routeToSection(
 ): Promise<RoutePoint[] | null> {
   const mode = stepFree ? 'step_free' : 'fastest';
   const cacheKey = { fromLabel, toLabel, mode };
-  type RouteResponse = {
-    points?: { coords: [number, number]; level: number; label: string }[];
+
+  const parseRoute = (data: unknown): NavigationRouteResponse | null => {
+    const parsed = NavigationRouteResponseSchema.safeParse(data);
+    return parsed.success && parsed.data.points.length >= 2 ? parsed.data : null;
   };
 
-  const asRoutePoints = (data: RouteResponse): RoutePoint[] | null => {
-    if (!data.points || data.points.length < 2) return null;
-    return data.points.map((p) => ({ coords: p.coords, level: p.level, label: p.label }));
-  };
+  const asRoutePoints = (data: NavigationRouteResponse): RoutePoint[] =>
+    data.points.map((point) => ({ coords: point.coords, level: point.level, label: point.label }));
 
   try {
     const res = await fetch(`${API_BASE}/api/navigation/route`, {
@@ -220,14 +221,15 @@ export async function routeToSection(
       ...(signal ? { signal } : {}),
     });
     if (!res.ok) throw new Error(`navigation route ${res.status}`);
-    const data = (await res.json()) as RouteResponse;
-    const points = asRoutePoints(data);
-    if (points) void saveRouteToCache(cacheKey, data);
-    return points;
+    const route = parseRoute(await res.json());
+    if (!route) throw new Error('navigation route returned an invalid response');
+    void saveRouteToCache(cacheKey, route);
+    return asRoutePoints(route);
   } catch {
     if (signal?.aborted) return null;
-    const cached = await getCachedRoute<RouteResponse>(cacheKey);
-    return cached ? asRoutePoints(cached) : null;
+    const cached = await getCachedRoute<unknown>(cacheKey);
+    const route = parseRoute(cached);
+    return route ? asRoutePoints(route) : null;
   }
 }
 

@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? '';
 
@@ -22,6 +22,11 @@ interface Rendered {
   cached: boolean;
 }
 
+type PaTranslatorPanelProps = {
+  adminToken: string;
+  onUnauthorized: () => void;
+};
+
 /**
  * PA Translator (Tier 1) — generative multilingual announcements.
  *
@@ -30,13 +35,18 @@ interface Rendered {
  * This is generative audio (real prosody), not the flat browser voice: "GenAI
  * beyond an LLM". A "generated live" badge keeps us honest about what's synthetic.
  */
-export function PaTranslatorPanel() {
+export function PaTranslatorPanel({ adminToken, onUnauthorized }: PaTranslatorPanelProps) {
   const [text, setText] = useState('Gate C is now closing. Please proceed to your seats.');
   const [selected, setSelected] = useState<string[]>(['es', 'hi', 'ar']);
   const [busy, setBusy] = useState(false);
   const [rendered, setRendered] = useState<Rendered[]>([]);
   const [error, setError] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const generatedUrls = useRef<string[]>([]);
+
+  useEffect(() => () => {
+    generatedUrls.current.forEach((url) => URL.revokeObjectURL(url));
+  }, []);
 
   const toggle = (code: string) =>
     setSelected((s) => (s.includes(code) ? s.filter((c) => c !== code) : [...s, code]));
@@ -46,6 +56,8 @@ export function PaTranslatorPanel() {
     if (!clean || selected.length === 0 || busy) return;
     setBusy(true);
     setError(null);
+    generatedUrls.current.forEach((url) => URL.revokeObjectURL(url));
+    generatedUrls.current = [];
     setRendered([]);
 
     const results: Rendered[] = [];
@@ -54,14 +66,23 @@ export function PaTranslatorPanel() {
         const label = TARGET_LANGS.find((l) => l.code === code)?.label ?? code;
         const res = await fetch(`${API_BASE}/api/audio/tts`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${adminToken}`,
+          },
           body: JSON.stringify({ text: clean, lang: code, source_lang: 'en' }),
         });
+        if (res.status === 401) {
+          onUnauthorized();
+          throw new Error('Your operator session expired. Please sign in again.');
+        }
         if (!res.ok) throw new Error(`Synthesis failed for ${label} (${res.status})`);
         const cached = res.headers.get('X-TTS-Cached') === '1';
         const spoken = decodeURIComponent(res.headers.get('X-TTS-Text') ?? '');
         const blob = await res.blob();
-        results.push({ code, label, url: URL.createObjectURL(blob), text: spoken, cached });
+        const url = URL.createObjectURL(blob);
+        generatedUrls.current.push(url);
+        results.push({ code, label, url, text: spoken, cached });
         setRendered([...results]); // progressive reveal as each language completes
       }
       // Auto-play the first one so the demo "just works".
@@ -74,7 +95,7 @@ export function PaTranslatorPanel() {
     } finally {
       setBusy(false);
     }
-  }, [text, selected, busy]);
+  }, [text, selected, busy, adminToken, onUnauthorized]);
 
   const play = (url: string) => {
     if (!audioRef.current) return;
@@ -99,7 +120,9 @@ export function PaTranslatorPanel() {
         One announcement, heard by every fan in their own language — generative voice, not a recording.
       </p>
 
+      <label htmlFor="pa-announcement" className="sr-only">English public-address announcement</label>
       <textarea
+        id="pa-announcement"
         value={text}
         onChange={(e) => setText(e.target.value)}
         rows={2}
@@ -135,10 +158,10 @@ export function PaTranslatorPanel() {
         {busy ? 'Synthesizing…' : `📢 Announce in ${selected.length} language${selected.length === 1 ? '' : 's'}`}
       </button>
 
-      {error && <p className="mt-2 text-xs text-red-400">{error}</p>}
+      {error && <p className="mt-2 text-xs text-red-400" role="alert">{error}</p>}
 
       {rendered.length > 0 && (
-        <ul className="mt-3 space-y-2">
+        <ul className="mt-3 space-y-2" aria-live="polite" aria-label="Generated announcements">
           {rendered.map((r) => (
             <li key={r.code} className="rounded-lg border border-surface-800 bg-surface-900 p-2">
               <div className="flex items-center justify-between">

@@ -2,6 +2,8 @@ import { Router } from 'express';
 import { alertStore } from '../services/alerts/store.js';
 
 export const alertsRouter: Router = Router();
+const MAX_ALERT_STREAMS = 100;
+let activeAlertStreams = 0;
 
 /**
  * GET /api/alerts/stream
@@ -11,6 +13,14 @@ export const alertsRouter: Router = Router();
  * immediately upon connection.
  */
 alertsRouter.get('/alerts/stream', (req, res) => {
+  if (activeAlertStreams >= MAX_ALERT_STREAMS) {
+    res.status(503).json({
+      error: { code: 'capacity_reached', message: 'Live alerts are temporarily at capacity. Please retry shortly.' },
+    });
+    return;
+  }
+  activeAlertStreams += 1;
+
   res.writeHead(200, {
     'Content-Type': 'text/event-stream',
     'Cache-Control': 'no-cache, no-transform',
@@ -36,7 +46,11 @@ alertsRouter.get('/alerts/stream', (req, res) => {
   // 3. Heartbeat to keep the proxy connection alive
   const heartbeat = setInterval(() => res.write(': ping\n\n'), 20_000);
 
+  let closed = false;
   res.on('close', () => {
+    if (closed) return;
+    closed = true;
+    activeAlertStreams = Math.max(0, activeAlertStreams - 1);
     unsubscribe();
     clearInterval(heartbeat);
     res.end();

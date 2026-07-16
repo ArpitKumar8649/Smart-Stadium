@@ -91,6 +91,11 @@ interface DeviceNavigator extends Navigator {
   deviceMemory?: number;
 }
 
+type LegacyMediaQueryList = MediaQueryList & {
+  addListener(listener: (event: MediaQueryListEvent) => void): void;
+  removeListener(listener: (event: MediaQueryListEvent) => void): void;
+};
+
 function getCesiumPerformanceProfile(): CesiumPerformanceProfile {
   if (typeof window === 'undefined') {
     return {
@@ -145,11 +150,21 @@ function useCesiumPerformanceProfile(): CesiumPerformanceProfile {
     const coarsePointer = window.matchMedia('(pointer: coarse)');
     window.addEventListener('resize', update);
     window.addEventListener('orientationchange', update);
-    coarsePointer.addEventListener('change', update);
+    const legacyPointer = coarsePointer as LegacyMediaQueryList;
+    if (typeof coarsePointer.addEventListener === 'function') {
+      coarsePointer.addEventListener('change', update);
+      return () => {
+        window.removeEventListener('resize', update);
+        window.removeEventListener('orientationchange', update);
+        coarsePointer.removeEventListener('change', update);
+      };
+    }
+
+    legacyPointer.addListener(update);
     return () => {
       window.removeEventListener('resize', update);
       window.removeEventListener('orientationchange', update);
-      coarsePointer.removeEventListener('change', update);
+      legacyPointer.removeListener(update);
     };
   }, []);
 
@@ -209,6 +224,7 @@ export const StadiumMap3D: React.FC<StadiumMap3DProps> = ({ userLocation, encode
   const [routing, setRouting] = useState(false);
   const roomsReqRef = useRef(0);
   const routeReqRef = useRef(0);
+  const routeAbortRef = useRef<AbortController | null>(null);
   const viewerRef = useRef<CesiumComponentRef<CesiumViewer> | null>(null);
 
   // Lazy-load the floor footprints + section index the first time Structure
@@ -279,32 +295,48 @@ export const StadiumMap3D: React.FC<StadiumMap3DProps> = ({ userLocation, encode
   );
 
   // Draw the walking path to the active section. Starts from a public gate
-  // (the graph routes by label, not GPS), step-free if the fan is on GPS-less
-  // accessibility — kept simple here. A race guard keeps only the latest route.
+  // (the graph routes by label, not GPS), step-free if requested. Both an abort
+  // controller and sequence guard keep stale section routes from rendering.
+  const cancelRoute = useCallback(() => {
+    routeReqRef.current += 1;
+    routeAbortRef.current?.abort();
+    routeAbortRef.current = null;
+    setRouting(false);
+  }, []);
+
   const showRouteToActive = useCallback(
     (stepFree = false) => {
       if (!activeSection) return;
-      const reqId = ++routeReqRef.current;
+      cancelRoute();
+      const reqId = routeReqRef.current;
+      const controller = new AbortController();
+      routeAbortRef.current = controller;
       setRouting(true);
-      routeToSection(activeSection, DEFAULT_START_LABEL, stepFree)
+      routeToSection(activeSection, DEFAULT_START_LABEL, stepFree, controller.signal)
         .then((pts) => {
           if (reqId !== routeReqRef.current) return;
           setRoutePts(pts);
           setRouting(false);
+          routeAbortRef.current = null;
         })
         .catch(() => {
           if (reqId !== routeReqRef.current) return;
           setRoutePts(null);
           setRouting(false);
+          routeAbortRef.current = null;
         });
     },
-    [activeSection],
+    [activeSection, cancelRoute],
   );
 
-  // Clearing the active section also clears any drawn route.
+  // Switching targets, hiding the target, or unmounting invalidates its route.
   useEffect(() => {
-    if (!activeSection) setRoutePts(null);
-  }, [activeSection]);
+    cancelRoute();
+    setRoutePts(null);
+    return () => cancelRoute();
+  }, [activeSection, cancelRoute]);
+
+  useEffect(() => () => cancelRoute(), [cancelRoute]);
 
   // The indoor route as Cesium positions, lifted to each point's floor height so
   // the path climbs the stack visibly (level 0 at ground, upper levels raised).

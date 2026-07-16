@@ -85,7 +85,7 @@ export class QwenProvider implements LlmProvider {
   }
 
   async *streamChat(opts: ChatOptions): AsyncGenerator<LlmStreamEvent, void, unknown> {
-    await llmBucket.acquire();
+    await llmBucket.acquire(opts.signal);
     const tools = this.toOpenAiTools(opts);
     const stream = await this.client.chat.completions.create({
       model: opts.model ?? this.chatModel,
@@ -145,7 +145,7 @@ export class QwenProvider implements LlmProvider {
   }
 
   async chat(opts: ChatOptions): Promise<{ message: ChatMessage; usage?: LlmUsage }> {
-    await llmBucket.acquire();
+    await llmBucket.acquire(opts.signal);
     const tools = this.toOpenAiTools(opts);
     const res = await this.client.chat.completions.create({
       model: opts.model ?? this.chatModel,
@@ -177,8 +177,8 @@ export class QwenProvider implements LlmProvider {
     return { message };
   }
 
-  async describeImage(imageB64: string, prompt: string, lang: string): Promise<string> {
-    await llmBucket.acquire();
+  async describeImage(imageB64: string, prompt: string, lang: string, signal?: AbortSignal): Promise<string> {
+    await llmBucket.acquire(signal);
     const dataUrl = imageB64.startsWith('data:') ? imageB64 : `data:image/jpeg;base64,${imageB64}`;
     const res = await this.client.chat.completions.create({
       model: this.vlModel,
@@ -192,7 +192,7 @@ export class QwenProvider implements LlmProvider {
         },
       ],
       max_tokens: 400,
-    });
+    }, signal ? { signal } : {});
     return res.choices[0]?.message?.content ?? '';
   }
 }

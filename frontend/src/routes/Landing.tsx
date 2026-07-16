@@ -56,7 +56,7 @@ const ShieldIcon = (props: React.SVGProps<SVGSVGElement>) => (
 const FEATURES = [
   {
     title: 'Multilingual concierge',
-    body: 'Ask anything about your matchday — in 30+ languages, by voice or by text.',
+    body: 'Ask matchday questions and choose from ten response-language preferences.',
     icon: '💬',
   },
   {
@@ -66,7 +66,7 @@ const FEATURES = [
   },
   {
     title: 'Live crowd awareness',
-    body: 'See where queues are forming. Reroute before you hit the halftime surge.',
+    body: 'See simulated queue conditions and choose a low-crowd route before the halftime surge.',
     icon: '👥',
   },
   {
@@ -76,12 +76,12 @@ const FEATURES = [
   },
   {
     title: 'Real-time decisions',
-    body: 'Proactive nudges via SSE: gate changes, delays, and "leave now" alerts.',
+    body: 'Connected navigation views receive demo closure and operational alerts via SSE.',
     icon: '⚡',
   },
   {
     title: 'Operations Command',
-    body: 'A secure /admin dashboard with AI operational briefings and incident injection.',
+    body: 'A server-protected demo-operator dashboard for simulated briefings and venue-wide scenarios.',
     icon: '🎛️',
   },
 ];
@@ -103,7 +103,7 @@ export default function Landing() {
       <div className="pointer-events-none absolute -right-[10%] top-[30%] h-[400px] w-[400px] animate-float-delayed rounded-full bg-accent-600/20 blur-[120px]" />
       <div className="pointer-events-none absolute bottom-[-10%] left-[20%] h-[600px] w-[600px] animate-float rounded-full bg-blue-900/20 blur-[150px]" />
 
-      <main className="relative z-10 mx-auto max-w-6xl px-6 py-8">
+      <main id="main-content" tabIndex={-1} className="relative z-10 mx-auto max-w-6xl px-6 py-8">
         {/* Header */}
         <header className="flex items-center justify-between glass-panel rounded-pill px-6 py-3">
           <Wordmark />
@@ -133,7 +133,7 @@ export default function Landing() {
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary-400 opacity-75" />
               <span className="relative inline-flex h-2 w-2 rounded-full bg-primary-500" />
             </span>
-            Live for FIFA World Cup 2026 · MetLife Stadium
+            Designed for FIFA World Cup 2026 · MetLife Stadium
           </div>
 
           <h1 className="mt-8 max-w-4xl font-display text-5xl font-bold leading-[1.1] tracking-tight sm:text-6xl lg:text-7xl">
@@ -143,7 +143,7 @@ export default function Landing() {
           </h1>
 
           <p className="mt-8 max-w-2xl text-lg leading-relaxed text-surface-300 sm:text-xl">
-            Concourse is a unified GenAI agent that actually knows the building. Ask in any language, get a step-free route, avoid the crowds, and receive live tactical nudges.
+            Concourse is a GenAI companion designed to use the venue graph. Ask naturally, choose a response language, get a step-free route, avoid simulated crowds, and receive live demo alerts.
           </p>
 
           <div className="mt-10 flex w-full max-w-md flex-col gap-4 sm:flex-row sm:items-center sm:justify-center">

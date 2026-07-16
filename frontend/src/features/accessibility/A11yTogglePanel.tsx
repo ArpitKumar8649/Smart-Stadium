@@ -1,4 +1,4 @@
-import { useA11y } from './A11yContext.tsx';
+import { useA11y } from './useA11y.ts';
 import type { AccessibilityPrefs } from '@concourse/shared';
 
 const PREF_LABELS: Record<keyof AccessibilityPrefs, string> = {
@@ -6,7 +6,7 @@ const PREF_LABELS: Record<keyof AccessibilityPrefs, string> = {
   sensory_safe: 'Avoid loud/crowded areas',
   large_text: 'Large text',
   reduce_motion: 'Reduce motion',
-  screen_reader: 'Optimize for screen readers',
+  screen_reader: 'Ask for screen-reader-friendly replies',
 };
 
 export function A11yTogglePanel() {

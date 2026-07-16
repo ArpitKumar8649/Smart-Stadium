@@ -6,6 +6,9 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+
 jobs:
   verify:
     name: typecheck · lint · test · build
@@ -15,7 +18,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '20.11.1'
+          node-version: '22.x'
           cache: npm
 
       - name: Install
@@ -33,8 +36,21 @@ jobs:
       - name: Test
         run: npm run test --workspaces --if-present
 
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Browser end-to-end tests
+        run: npm run test:e2e -w frontend
+
       - name: Build frontend
         run: npm run build -w frontend
+
+      - name: Verify client bundle excludes server credentials
+        run: |
+          if grep -R -E --binary-files=text 'ADMIN_DEMO_TOKEN|playwright-local-admin-token|concourse-local-admin' frontend/dist; then
+            echo 'Server-side admin credential marker found in the browser bundle.' >&2
+            exit 1
+          fi
 
       - name: Build backend
         run: npm run build -w backend

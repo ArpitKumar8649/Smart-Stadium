@@ -16,6 +16,8 @@ interface ConcourseMapProps {
   onSetLocation?: (loc: { lat: number; lng: number }) => void;
   /** Seating section from the conversation — flips to 3D and highlights it. */
   focusSection?: string | null;
+  /** Keep constrained/mobile layouts on the lightweight 2D view until chosen. */
+  prefer2d?: boolean;
 }
 
 interface StadiumMap3DProps {
@@ -59,10 +61,10 @@ export const ConcourseMap: React.FC<ConcourseMapProps> = (props) => {
 
   // When the conversation names a seating section, jump to 3D so the fan sees
   // it light up (unless 3D has failed — then stay on the working 2D map).
-  const { focusSection } = props;
+  const { focusSection, prefer2d = false } = props;
   useEffect(() => {
-    if (focusSection && !threeFailed) setMode('3d');
-  }, [focusSection, threeFailed]);
+    if (focusSection && !threeFailed && !prefer2d) setMode('3d');
+  }, [focusSection, prefer2d, threeFailed]);
 
   const mapNavItems: NavItem[] = [
     { id: '2d', icon: <MapIcon />, label: '2D map' },

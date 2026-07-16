@@ -4,15 +4,16 @@ import type { ChatMessage, LlmStreamEvent } from '../llm/provider.js';
 import { TOOL_DEFINITIONS, handleToolCall } from './tools.js';
 import { buildSystemPrompt, CONCIERGE_TEMPERATURE } from './prompt.js';
 import { logger } from '../../middleware/logger.js';
+import { LlmCapacityError } from '../llm/rate-limit.js';
 
 const MAX_HOPS = 6;
 
 /** Events the concierge loop emits to the transport (mapped to SSE frames). */
 export type ConciergeEvent =
-  | { type: 'token'; text: string }
+  | { type: 'token'; text: string; index: number }
   | { type: 'toolCall'; id: string; name: string; args: Record<string, unknown> }
   | { type: 'toolResult'; id: string; name: string; ok: boolean; summary?: string }
-  | { type: 'done'; usage?: { input_tokens: number; output_tokens: number } }
+  | { type: 'done'; usage: { input_tokens: number; output_tokens: number } }
   | { type: 'error'; code: string; message: string };
 
 export interface ConciergeTurnInput {
@@ -22,7 +23,7 @@ export interface ConciergeTurnInput {
   matchLabel?: string;
   accessibility?: string[];
   history?: ChatMessage[];
-  context?: { location?: { lat: number, lng: number } } & Record<string, unknown>;
+  context?: { location?: { lat: number; lng: number } };
   signal?: AbortSignal;
 }
 
@@ -74,6 +75,7 @@ export async function* runConciergeTurn(
   ];
 
   const totalUsage = { input_tokens: 0, output_tokens: 0 };
+  let tokenIndex = 0;
 
   for (let hop = 0; hop < MAX_HOPS; hop++) {
     let assistantText = '';
@@ -90,7 +92,7 @@ export async function* runConciergeTurn(
         const e = ev as LlmStreamEvent;
         if (e.type === 'token') {
           assistantText += e.text;
-          yield { type: 'token', text: e.text };
+          yield { type: 'token', text: e.text, index: tokenIndex++ };
         } else if (e.type === 'tool_calls') {
           toolCalls = e.calls;
         } else if (e.type === 'done') {
@@ -102,6 +104,14 @@ export async function* runConciergeTurn(
         }
       }
     } catch (err) {
+      // The browser closed its SSE connection while the provider queue or
+      // request was in flight. There is no client left to notify.
+      if (input.signal?.aborted) return;
+      if (err instanceof LlmCapacityError) {
+        logger.warn('concierge request rejected because the LLM queue is full');
+        yield { type: 'error', code: 'busy', message: 'Concourse is busy. Please try again in a moment.' };
+        return;
+      }
       logger.error({ err }, 'concierge stream failed');
       yield { type: 'error', code: 'llm_error', message: 'Concourse hit a snag. Try again.' };
       return;
@@ -154,6 +164,7 @@ export async function* runConciergeTurn(
   yield {
     type: 'token',
     text: ' (I need a moment to finish that — could you rephrase?)',
+    index: tokenIndex++,
   };
   yield { type: 'done', usage: totalUsage };
 }

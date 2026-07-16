@@ -89,6 +89,14 @@ describe('A* router', () => {
     expect(r!.warnings).toHaveLength(0);
   });
 
+  it('sensory_safe mode also avoids stairs when a gentler route exists', () => {
+    const idx = buildGraphIndex(miniGraph());
+    const r = route(idx, 'A', 'C', 'sensory_safe');
+    expect(r).not.toBeNull();
+    expect(r!.path).toEqual(['A', 'B', 'D', 'C']);
+    expect(r!.step_free).toBe(true);
+  });
+
   it('returns null when no path exists', () => {
     const idx = buildGraphIndex(miniGraph());
     expect(route(idx, 'A', 'Z', 'fastest')).toBeNull();
@@ -112,6 +120,19 @@ describe('A* router', () => {
     expect(r).not.toBeNull();
     // B is unavoidable here, so crowd_penalty should reflect the applied cost.
     expect(r!.crowd_penalty).toBeGreaterThan(0);
+  });
+
+  it('excludes an operationally blocked node when an alternate route exists', () => {
+    const graph = miniGraph();
+    graph.edges.push(...bidir('A', 'D', 55, true));
+    const idx = buildGraphIndex(graph);
+
+    const normal = route(idx, 'A', 'C', 'fastest');
+    expect(normal?.path).toEqual(['A', 'B', 'C']);
+
+    const detour = route(idx, 'A', 'C', 'fastest', () => 0, (nodeId) => nodeId === 'B');
+    expect(detour?.path).toEqual(['A', 'D', 'C']);
+    expect(detour?.path).not.toContain('B');
   });
 
   it('trivial route (same start and goal) is zero-cost', () => {

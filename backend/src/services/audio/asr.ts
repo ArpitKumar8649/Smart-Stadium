@@ -19,7 +19,8 @@
  */
 
 import { WebSocketServer, WebSocket, type RawData } from 'ws';
-import type { Server } from 'node:http';
+import type { IncomingMessage, Server } from 'node:http';
+import { isIP } from 'node:net';
 import { env } from '../../config/env.js';
 import { logger } from '../../middleware/logger.js';
 import { getGraph } from '../graph/loader.js';
@@ -29,6 +30,15 @@ const ASR_URL = `wss://dashscope-intl.aliyuncs.com/api-ws/v1/realtime?model=${AS
 const ASR_PATH = '/api/audio/asr';
 /** Hard cap on a single caption session, to protect the free ASR quota. */
 const MAX_SESSION_MS = 120_000;
+/** A PCM frame from the browser should be tiny; reject oversized WS messages. */
+const MAX_CLIENT_MESSAGE_BYTES = 128 * 1024;
+/** 16 kHz, mono, 16-bit PCM is ~32 KB/s. This permits the full two-minute session. */
+const MAX_SESSION_AUDIO_BYTES = 4 * 1024 * 1024;
+const MAX_CONNECTIONS_PER_IP = 2;
+const MAX_CONNECTIONS_TOTAL = 8;
+
+const activeConnectionsByIp = new Map<string, number>();
+let activeConnections = 0;
 
 /** Terms that aren't venue nodes but are common in fan/PA speech here. */
 const STATIC_HOTWORDS = [
@@ -57,12 +67,39 @@ function venueCorpus(): string {
 
 /** Wire the ASR bridge onto the shared HTTP server (handles the WS upgrade). */
 export function attachAsrWebSocket(server: Server): void {
-  const wss = new WebSocketServer({ noServer: true });
+  const wss = new WebSocketServer({ noServer: true, maxPayload: MAX_CLIENT_MESSAGE_BYTES });
 
   server.on('upgrade', (req, socket, head) => {
-    // Only claim our own path; leave anything else alone.
-    if (!req.url || !req.url.startsWith(ASR_PATH)) return;
-    wss.handleUpgrade(req, socket, head, (client) => wss.emit('connection', client, req));
+    const path = requestPath(req.url);
+    // Only claim our own exact path; leave other upgrade handlers alone.
+    if (path !== ASR_PATH) return;
+
+    const origin = req.headers.origin;
+    if (!origin || !env.allowedOrigins.includes(origin)) {
+      rejectUpgrade(socket, 403, 'Origin is not allowed');
+      return;
+    }
+
+    const ip = requestClientIp(req);
+    const active = activeConnectionsByIp.get(ip) ?? 0;
+    if (activeConnections >= MAX_CONNECTIONS_TOTAL) {
+      rejectUpgrade(socket, 503, 'Caption service is at capacity');
+      return;
+    }
+    if (active >= MAX_CONNECTIONS_PER_IP) {
+      rejectUpgrade(socket, 429, 'Too many caption sessions');
+      return;
+    }
+
+    wss.handleUpgrade(req, socket, head, (client) => {
+      activeConnections += 1;
+      activeConnectionsByIp.set(ip, active + 1);
+      client.once('close', () => {
+        activeConnections = Math.max(0, activeConnections - 1);
+        releaseConnection(ip);
+      });
+      wss.emit('connection', client, req);
+    });
   });
 
   wss.on('connection', (client) => bridgeSession(client));
@@ -81,10 +118,14 @@ function bridgeSession(client: WebSocket): void {
   });
 
   let upstreamReady = false;
+  let closed = false;
+  let audioBytes = 0;
   const pending: Buffer[] = []; // audio that arrived before upstream was ready
   const killTimer = setTimeout(() => close('session timeout'), MAX_SESSION_MS);
 
   const close = (reason: string): void => {
+    if (closed) return;
+    closed = true;
     clearTimeout(killTimer);
     safeSend(client, { type: 'done' });
     if (client.readyState === WebSocket.OPEN) client.close();
@@ -159,6 +200,12 @@ function bridgeSession(client: WebSocket): void {
   client.on('message', (data: RawData, isBinary: boolean) => {
     if (isBinary) {
       const buf = Buffer.isBuffer(data) ? data : Buffer.from(data as ArrayBuffer);
+      audioBytes += buf.byteLength;
+      if (audioBytes > MAX_SESSION_AUDIO_BYTES) {
+        safeSend(client, { type: 'error', message: 'Caption session reached its audio limit. Start a new session to continue.' });
+        close('audio byte limit reached');
+        return;
+      }
       if (upstreamReady) forwardAudio(buf);
       else pending.push(buf);
       return;
@@ -174,6 +221,42 @@ function bridgeSession(client: WebSocket): void {
 
   client.on('close', () => close('client closed'));
   client.on('error', (err) => { logger.warn({ err }, 'ASR client error'); close('client error'); });
+}
+
+function requestPath(url: string | undefined): string | undefined {
+  if (!url) return undefined;
+  try {
+    return new URL(url, 'http://localhost').pathname;
+  } catch {
+    return undefined;
+  }
+}
+
+/** Azure appends the client address when it forwards an upgrade. Read the
+ * rightmost valid value rather than trusting a caller-supplied leftmost value. */
+function requestClientIp(req: IncomingMessage): string {
+  if (env.isProd) {
+    const forwarded = req.headers['x-forwarded-for'];
+    const value = Array.isArray(forwarded) ? forwarded.join(',') : forwarded;
+    const client = value
+      ?.split(',')
+      .map((part) => part.trim())
+      .reverse()
+      .find((part) => isIP(part) !== 0);
+    if (client) return client;
+  }
+  return req.socket.remoteAddress ?? 'unknown';
+}
+
+function rejectUpgrade(socket: import('node:stream').Duplex, status: number, message: string): void {
+  socket.write(`HTTP/1.1 ${status} ${message}\r\nConnection: close\r\nContent-Length: 0\r\n\r\n`);
+  socket.destroy();
+}
+
+function releaseConnection(ip: string): void {
+  const active = activeConnectionsByIp.get(ip) ?? 0;
+  if (active <= 1) activeConnectionsByIp.delete(ip);
+  else activeConnectionsByIp.set(ip, active - 1);
 }
 
 function safeSend(ws: WebSocket, obj: unknown): void {

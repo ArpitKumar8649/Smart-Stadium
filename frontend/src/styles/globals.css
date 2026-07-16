@@ -16,6 +16,21 @@ body {
   @apply bg-surface-950 text-surface-50 min-h-screen selection:bg-primary-900 selection:text-primary-100;
 }
 
+/* User-controlled accessibility settings. A root font-size increase scales
+   explicit rem-based Tailwind sizes, unlike adding a class to <html>. */
+html[data-concourse-large-text='true'] {
+  font-size: 112.5%;
+}
+
+html[data-concourse-reduce-motion='true'] *,
+html[data-concourse-reduce-motion='true'] *::before,
+html[data-concourse-reduce-motion='true'] *::after {
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  scroll-behavior: auto !important;
+  transition-duration: 0.001ms !important;
+}
+
 @media (prefers-reduced-motion: reduce) {
   * {
     animation-duration: 0.001ms !important;

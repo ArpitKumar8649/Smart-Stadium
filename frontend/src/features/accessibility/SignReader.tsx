@@ -11,6 +11,11 @@ export function SignReader({ lang = 'en', onDescription }: { lang?: string, onDe
     const file = event.target.files?.[0];
     if (!file) return;
 
+    if (file.size > 1_300_000) {
+      setError('Choose an image smaller than 1.3 MB so it can be read securely.');
+      return;
+    }
+
     setLoading(true);
     setError('');
 
@@ -61,7 +66,7 @@ export function SignReader({ lang = 'en', onDescription }: { lang?: string, onDe
         <span role="img" aria-hidden="true">📷</span>
         {loading ? 'Reading sign...' : 'Read a sign'}
       </button>
-      {error && <p className="text-xs text-red-400">{error}</p>}
+      {error && <p className="text-xs text-red-400" role="alert">{error}</p>}
     </div>
   );
 }

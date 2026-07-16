@@ -27,7 +27,6 @@ In Google Cloud Console, with the same Firebase project selected:
    example `github-smart-stadium-deployer`.
 2. Grant it these project roles:
    - **Firebase Hosting Admin** (`roles/firebasehosting.admin`)
-   - **Service Usage API Keys Viewer** (`roles/serviceusage.apiKeysViewer`)
 3. Open the new service account → **Keys** → **Add key** → **Create new key**
    → **JSON**, then download it once.
 4. In GitHub, open this repository's **Settings → Secrets and variables →
@@ -47,7 +46,7 @@ same service-account flow and role requirements.
 In GitHub → **Settings → Secrets and variables → Actions → Variables**, add:
 
 ```text
-FIREBASE_PROJECT_ID=<your Firebase project ID>
+FIREBASE_PROJECT_ID=concourse-stadium
 VITE_API_BASE=https://concourse-api-arpit-b3eha5agdcfgg9hp.centralindia-01.azurewebsites.net
 ```
 
@@ -55,17 +54,23 @@ VITE_API_BASE=https://concourse-api-arpit-b3eha5agdcfgg9hp.centralindia-01.azure
 itself. It is intentionally a variable rather than a secret because the
 browser must know the API's public URL.
 
-These are optional browser-visible variables:
+`firebase.json` ships a restrictive Content Security Policy that permits the
+default Azure `*.azurewebsites.net` HTTPS and WebSocket endpoints. If you later
+use a custom API domain, add its `https://` and `wss://` origins to that policy
+before deploying, as well as to the Azure `ALLOWED_ORIGINS` setting.
+
+This is an optional browser-visible variable:
 
 ```text
 VITE_CESIUM_ION_TOKEN=<your Cesium browser token>
-VITE_ADMIN_DEMO_TOKEN=<the same demo-only value as Azure ADMIN_DEMO_TOKEN>
 ```
 
 Every `VITE_*` value is embedded into the frontend JavaScript during the build.
 Never put DashScope, Google Routes, Firebase service-account, or any other
-server secret in one. `VITE_ADMIN_DEMO_TOKEN` is only appropriate for this
-hackathon's client-side demo passcode; it is not real production security.
+server secret in one. In particular, keep `ADMIN_DEMO_TOKEN` only in Azure.
+An operator enters it at `/admin`, where the backend validates it over HTTPS;
+the token is held only in that page's memory and is never embedded in the
+public Firebase bundle.
 
 ## 4. Allow the Firebase site to call Azure
 
@@ -74,7 +79,7 @@ variables**, update `ALLOWED_ORIGINS` after Firebase Hosting has created the
 site URLs:
 
 ```text
-http://localhost:5173,https://<project-id>.web.app,https://<project-id>.firebaseapp.com
+http://localhost:5173,https://concourse-stadium.web.app,https://concourse-stadium.firebaseapp.com
 ```
 
 Include a custom domain there too if one is connected later. Save the setting;

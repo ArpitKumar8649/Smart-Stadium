@@ -18,7 +18,8 @@ chatRouter.post('/chat', async (req, res) => {
     });
     return;
   }
-  const { message, history, lang, location_node_id, context } = parsed.data;
+  const { message, history, lang, accessibility, location_node_id, context } = parsed.data;
+  const conciergeContext = context?.location ? { location: context.location } : undefined;
 
   res.writeHead(200, {
     'Content-Type': 'text/event-stream',
@@ -50,8 +51,9 @@ chatRouter.post('/chat', async (req, res) => {
       message,
       ...(history ? { history } : {}),
       ...(lang ? { lang } : {}),
+      ...(accessibility ? { accessibility } : {}),
       ...(locationLabel ? { locationLabel } : {}),
-      ...(context ? { context } : {}),
+      ...(conciergeContext ? { context: conciergeContext } : {}),
       signal: ac.signal,
     })) {
       send(ev);

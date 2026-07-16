@@ -1,17 +1,11 @@
 import { Router } from 'express';
-import { z } from 'zod';
-import { ROUTING_MODES } from '@concourse/shared';
+import { NavigationRouteRequestSchema } from '@concourse/shared';
 import { findNodeByLabel, getGraph, searchNodes } from '../services/graph/loader.js';
 import { route } from '../services/graph/astar.js';
 import { getCrowdSimulator } from '../services/crowd/simulator.js';
+import { alertStore } from '../services/alerts/store.js';
 
 export const navigationRouter: Router = Router();
-
-const RouteLookupSchema = z.object({
-  from_label: z.string().min(1).max(120),
-  to_label: z.string().min(1).max(120),
-  mode: z.enum(ROUTING_MODES).default('fastest'),
-});
 
 function routerGraph() {
   const graph = getGraph();
@@ -26,7 +20,7 @@ function routerGraph() {
  * Mappedin routing node in the imported MetLife graph.
  */
 navigationRouter.post('/navigation/route', (req, res) => {
-  const parsed = RouteLookupSchema.safeParse(req.body);
+  const parsed = NavigationRouteRequestSchema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({
       error: { code: 'validation_error', message: 'Invalid route request', details: parsed.error.flatten() },
@@ -51,8 +45,14 @@ navigationRouter.post('/navigation/route', (req, res) => {
   }
 
   const crowd = getCrowdSimulator();
-  const result = route(routerGraph(), from.id, to.id, mode, (nodeId) =>
-    crowd.crowdPenaltyForNode(nodeId),
+  const blockedNodes = alertStore.activeAffectedNodeIds();
+  const result = route(
+    routerGraph(),
+    from.id,
+    to.id,
+    mode,
+    (nodeId) => crowd.crowdPenaltyForNode(nodeId),
+    (nodeId) => blockedNodes.has(nodeId),
   );
 
   if (!result) {
@@ -66,7 +66,14 @@ navigationRouter.post('/navigation/route', (req, res) => {
   const points = result.path.flatMap((id, order) => {
     const node = graph.nodeById.get(id);
     if (!node) return [];
-    return [{ id: node.id, label: node.label, level: node.level, coords: node.coords, order }];
+    return [{
+      id: node.id,
+      label: node.label,
+      level: node.level,
+      ...(node.zone ? { zone: node.zone } : {}),
+      coords: node.coords,
+      order,
+    }];
   });
 
   res.json({

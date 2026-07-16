@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? '';
 
@@ -62,29 +62,74 @@ export function useLiveCaptions(): LiveCaptions {
   const streamRef = useRef<MediaStream | null>(null);
   const procRef = useRef<ScriptProcessorNode | null>(null);
   const srcRef = useRef<MediaStreamAudioSourceNode | null>(null);
+  const attemptRef = useRef(0);
+  const mountedRef = useRef(true);
 
-  const stop = useCallback(() => {
-    try { wsRef.current?.send(JSON.stringify({ type: 'stop' })); } catch { /* socket may be closing */ }
-    procRef.current?.disconnect();
-    srcRef.current?.disconnect();
-    void ctxRef.current?.close();
-    streamRef.current?.getTracks().forEach((t) => t.stop());
-    wsRef.current?.close();
-    procRef.current = null; srcRef.current = null; ctxRef.current = null;
-    streamRef.current = null; wsRef.current = null;
-    setState('idle');
-    setPartial('');
+  /** Release every browser-owned media resource. Safe to call more than once. */
+  const release = useCallback((nextState?: CaptionState, nextError?: string) => {
+    const ws = wsRef.current;
+    const proc = procRef.current;
+    const source = srcRef.current;
+    const ctx = ctxRef.current;
+    const stream = streamRef.current;
+
+    wsRef.current = null;
+    procRef.current = null;
+    srcRef.current = null;
+    ctxRef.current = null;
+    streamRef.current = null;
+
+    proc?.disconnect();
+    source?.disconnect();
+    void ctx?.close();
+    stream?.getTracks().forEach((track) => track.stop());
+    try { ws?.close(); } catch { /* socket may already be closed */ }
+
+    if (!mountedRef.current || !nextState) return;
+    if (nextError !== undefined) setError(nextError);
+    setState(nextState);
+    if (nextState !== 'listening') setPartial('');
   }, []);
 
+  const stop = useCallback(() => {
+    attemptRef.current += 1;
+    try { wsRef.current?.send(JSON.stringify({ type: 'stop' })); } catch { /* socket may be closing */ }
+    release('idle');
+  }, [release]);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      attemptRef.current += 1;
+      release();
+    };
+  }, [release]);
+
   const start = useCallback(async () => {
+    // Starting a fresh attempt always releases a previous failed or connecting attempt.
+    attemptRef.current += 1;
+    const attempt = attemptRef.current;
+    release();
     setError(null);
     setLines([]);
     setPartial('');
     setState('connecting');
+
+    const fail = (message: string, ws?: WebSocket) => {
+      if (attempt !== attemptRef.current || (ws && wsRef.current !== ws)) return;
+      attemptRef.current += 1;
+      release('error', message);
+    };
+
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true },
       });
+      if (attempt !== attemptRef.current || !mountedRef.current) {
+        stream.getTracks().forEach((track) => track.stop());
+        return;
+      }
       streamRef.current = stream;
 
       const ctx = new AudioContext();
@@ -100,29 +145,41 @@ export function useLiveCaptions(): LiveCaptions {
       wsRef.current = ws;
       let ready = false;
 
-      ws.onmessage = (e) => {
-        let m: { type?: string; text?: string; message?: string };
-        try { m = JSON.parse(e.data as string); } catch { return; }
-        if (m.type === 'ready') { ready = true; setState('listening'); }
-        else if (m.type === 'partial' && m.text !== undefined) setPartial(m.text);
-        else if (m.type === 'final' && m.text) { setLines((l) => [...l, m.text!]); setPartial(''); }
-        else if (m.type === 'error') { setError(m.message ?? 'Recognition error.'); setState('error'); stop(); }
+      ws.onmessage = (event) => {
+        if (attempt !== attemptRef.current || wsRef.current !== ws) return;
+        let message: { type?: string; text?: string; message?: string };
+        try { message = JSON.parse(event.data as string); } catch { return; }
+        if (message.type === 'ready') {
+          ready = true;
+          setState('listening');
+        } else if (message.type === 'partial' && message.text !== undefined) {
+          setPartial(message.text);
+        } else if (message.type === 'final' && message.text) {
+          setLines((current) => [...current, message.text!]);
+          setPartial('');
+        } else if (message.type === 'error') {
+          fail(message.message ?? 'Recognition error.', ws);
+        }
       };
-      ws.onerror = () => { setError('Could not connect to the caption service.'); setState('error'); };
+      ws.onerror = () => fail('Could not connect to the caption service.', ws);
+      ws.onclose = () => {
+        if (attempt === attemptRef.current && wsRef.current === ws) {
+          fail('The caption service connection closed unexpectedly.', ws);
+        }
+      };
 
       const inRate = ctx.sampleRate;
-      proc.onaudioprocess = (ev) => {
-        if (!ready || ws.readyState !== WebSocket.OPEN) return;
-        ws.send(downsampleToPcm16(ev.inputBuffer.getChannelData(0), inRate));
+      proc.onaudioprocess = (event) => {
+        if (attempt !== attemptRef.current || !ready || ws.readyState !== WebSocket.OPEN) return;
+        ws.send(downsampleToPcm16(event.inputBuffer.getChannelData(0), inRate));
       };
 
       source.connect(proc);
       proc.connect(ctx.destination); // needed for onaudioprocess to fire in some browsers
     } catch {
-      setError('Microphone access was denied or is unavailable.');
-      setState('error');
+      if (attempt === attemptRef.current) fail('Microphone access was denied or is unavailable.');
     }
-  }, [stop]);
+  }, [release]);
 
   return { state, partial, lines, error, start, stop };
 }

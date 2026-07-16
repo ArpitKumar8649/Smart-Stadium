@@ -12,6 +12,8 @@ export const AlertSchema = z.object({
   emitted_at: z.string(),
   expires_at: z.string().optional(),
   affected_zone_id: z.string().optional(),
+  /** Internal venue-graph node temporarily unavailable for a demo advisory. */
+  affected_node_id: z.string().optional(),
   affected_gate_id: z.string().optional(),
 });
 export type Alert = z.infer<typeof AlertSchema>;
@@ -24,6 +26,8 @@ export const IncidentSchema = z.object({
   title: z.string(),
   body: z.string(),
   affected_zone_id: z.string().optional(),
+  /** Internal venue-graph node temporarily unavailable for a demo advisory. */
+  affected_node_id: z.string().optional(),
   affected_gate_id: z.string().optional(),
   created_at: z.string(),
   created_by: z.string(),

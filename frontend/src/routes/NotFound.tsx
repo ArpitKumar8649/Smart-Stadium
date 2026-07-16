@@ -3,7 +3,7 @@ import { Wordmark } from '../components/brand/Logo.tsx';
 
 export default function NotFound() {
   return (
-    <main className="mx-auto flex min-h-screen max-w-xl flex-col items-start justify-center gap-6 px-6">
+    <main id="main-content" tabIndex={-1} className="mx-auto flex min-h-screen max-w-xl flex-col items-start justify-center gap-6 px-6">
       <Wordmark />
       <h1 className="font-display text-4xl font-semibold">This concourse ring doesn't exist yet.</h1>
       <p className="text-surface-300">

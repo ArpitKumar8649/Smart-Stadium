@@ -4,8 +4,14 @@ import polyline from '@mapbox/polyline';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 
-// Fix Leaflet's default icon path issues with webpack/vite
-delete (L.Icon.Default.prototype as any)._getIconUrl;
+// Fix Leaflet's default icon path issues with webpack/vite.
+// Leaflet keeps this internal method off its public type definition.
+type DefaultIconPrototype = typeof L.Icon.Default.prototype & {
+  _getIconUrl?: () => string;
+};
+
+const defaultIconPrototype = L.Icon.Default.prototype as DefaultIconPrototype;
+delete defaultIconPrototype._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
   iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
