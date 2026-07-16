@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, Suspense, type RefObject } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { useGLTF, Environment, ContactShadows } from '@react-three/drei';
+import { useGLTF, ContactShadows } from '@react-three/drei';
 import { KTX2Loader, type GLTFLoader } from 'three-stdlib';
 import { useReducedMotion } from '../../features/accessibility/useReducedMotion.ts';
 
@@ -224,7 +224,6 @@ export default function TrophyScene() {
               frames={1}
               resolution={handset ? 128 : 256}
             />
-            <Environment preset="city" />
           </Suspense>
         </Canvas>
       )}
