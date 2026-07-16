@@ -68,14 +68,26 @@ jobs:
           channelId: live
           entryPoint: .
 
-      - name: Smoke-test hosted app and Azure CORS
+      - name: Smoke-test hosted app, hashed entry module, and Azure SSE
         env:
           FRONTEND_ORIGIN: https://${{ vars.FIREBASE_PROJECT_ID }}.web.app
           API_BASE: ${{ vars.VITE_API_BASE }}
         run: |
           set -euo pipefail
-          curl --fail --silent --show-error --head "$FRONTEND_ORIGIN/navigate" >/dev/null
-          headers=$(curl --fail --silent --show-error --dump-header - --output /dev/null \
+          cache_bust="?release=${GITHUB_SHA}"
+          html=$(curl --fail --silent --show-error "$FRONTEND_ORIGIN/$cache_bust")
+          entry=$(printf '%s' "$html" | grep -oE '/assets/index-[A-Za-z0-9_-]+\.js' | head -n 1)
+          test -n "$entry"
+          entry_headers=$(curl --fail --silent --show-error --head "$FRONTEND_ORIGIN$entry$cache_bust" | tr -d '\r')
+          printf '%s\n' "$entry_headers" | grep --ignore-case '^content-type: text/javascript' >/dev/null
+          curl --fail --silent --show-error --head "$FRONTEND_ORIGIN/navigate$cache_bust" >/dev/null
+          health_headers=$(curl --fail --silent --show-error --dump-header - --output /dev/null \
             --header "Origin: $FRONTEND_ORIGIN" "$API_BASE/api/health" | tr -d '\r')
-          printf '%s\n' "$headers" | grep --fixed-strings --ignore-case "access-control-allow-origin: $FRONTEND_ORIGIN" >/dev/null
-          printf '%s\n' "$headers" | grep --fixed-strings --ignore-case 'access-control-allow-credentials: true' >/dev/null
+          printf '%s\n' "$health_headers" | grep --fixed-strings --ignore-case "access-control-allow-origin: $FRONTEND_ORIGIN" >/dev/null
+          printf '%s\n' "$health_headers" | grep --fixed-strings --ignore-case 'access-control-allow-credentials: true' >/dev/null
+          sse_headers=$(timeout 25 curl --silent --show-error --no-buffer --dump-header - --output /dev/null \
+            --header 'Accept: text/event-stream' \
+            --header 'Cache-Control: no-cache' \
+            --header "Origin: $FRONTEND_ORIGIN" "$API_BASE/api/alerts/stream" || test $? -eq 124)
+          printf '%s\n' "$sse_headers" | tr -d '\r' | grep --ignore-case '^content-type: text/event-stream' >/dev/null
+          printf '%s\n' "$sse_headers" | tr -d '\r' | grep --fixed-strings --ignore-case "access-control-allow-origin: $FRONTEND_ORIGIN" >/dev/null

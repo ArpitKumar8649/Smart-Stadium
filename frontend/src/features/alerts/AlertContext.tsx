@@ -16,6 +16,12 @@ export function AlertProvider({ children }: { children: ReactNode }) {
 
     const connect = () => {
       if (!mounted) return;
+      // A production build must use the public API origin. Falling back to the
+      // Hosting origin would make Firebase's SPA rewrite return HTML to EventSource.
+      if (!API_BASE && !import.meta.env.DEV) {
+        console.error('Live alerts are unavailable because the public API URL is not configured.');
+        return;
+      }
       es = new EventSource(`${API_BASE}/api/alerts/stream`);
 
       es.onmessage = (event) => {

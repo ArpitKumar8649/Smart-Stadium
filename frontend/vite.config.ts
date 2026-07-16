@@ -15,7 +15,11 @@ export default defineConfig({
       cesiumBuildPath: '../node_modules/cesium/Build/Cesium/',
     }),
     VitePWA({
+      // The explicit virtual registration handler reloads the app when a new
+      // worker activates, so the app shell and precached chunks never belong to
+      // different Vite releases.
       registerType: 'autoUpdate',
+      injectRegister: false,
       includeAssets: [
         'favicon.svg',
         'floor.geojson',
