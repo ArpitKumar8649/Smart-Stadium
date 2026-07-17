@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useMemo, useRef, useState, Suspense, type RefObject } from 'react';
-import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { useGLTF, ContactShadows } from '@react-three/drei';
-import { KTX2Loader, type GLTFLoader } from 'three-stdlib';
+import { useEffect, useRef, useState, Suspense, type RefObject } from 'react';
+import { Canvas, useFrame } from '@react-three/fiber';
+import { ContactShadows } from '@react-three/drei';
 import { useReducedMotion } from '../../features/accessibility/useReducedMotion.ts';
+import { Model } from './TrophyModel.tsx';
 
 /* ─────────────────────────────────────────────────────────
  *  TrophyScene
@@ -15,8 +15,6 @@ import { useReducedMotion } from '../../features/accessibility/useReducedMotion.
  * ───────────────────────────────────────────────────────── */
 
 // ── Continuous typing loop hook ───────────────────────────
-
-const TROPHY_MODEL_URL = '/trophy.optimized.glb';
 
 function useTrophyActive(containerRef: RefObject<HTMLDivElement>): boolean {
   const [inViewport, setInViewport] = useState(false);
@@ -113,26 +111,9 @@ function useTypingLoop(
 // ── Inner 3D model component ─────────────────────────────
 
 function TrophyModel({ reduceMotion }: { reduceMotion: boolean }) {
-  const gl = useThree((state) => state.gl);
-  const ktx2Loader = useMemo(
-    () => new KTX2Loader().setTranscoderPath('/basis/').setWorkerLimit(1).detectSupport(gl),
-    [gl],
-  );
-  const extendLoader = useCallback(
-    (loader: GLTFLoader) => loader.setKTX2Loader(ktx2Loader),
-    [ktx2Loader],
-  );
-  const { scene } = useGLTF(TROPHY_MODEL_URL, false, true, extendLoader);
   // The workspace currently resolves two compatible Three type packages. Keep
   // the ref structural so it remains type-safe without coupling to either copy.
   const groupRef = useRef<{ rotation: { y: number } } | null>(null);
-
-  useEffect(
-    () => () => {
-      ktx2Loader.dispose();
-    },
-    [ktx2Loader],
-  );
 
   useFrame((_, delta) => {
     if (!groupRef.current || reduceMotion) return;
@@ -143,7 +124,7 @@ function TrophyModel({ reduceMotion }: { reduceMotion: boolean }) {
 
   return (
     <group ref={groupRef as never} position={[0, 0, 0]}>
-      <primitive object={scene} scale={1.8} />
+      <Model scale={1.8} />
     </group>
   );
 }

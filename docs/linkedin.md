@@ -4,30 +4,36 @@
 
 ## Post copy
 
-What if a stadium app could do more than show a static map?
+What do you do when 82,000 fans pour into a stadium — many in a language they don’t share with the venue, some needing a step-free route, others trying to avoid a crushing concourse — and the event keeps moving around them?
 
-A fan may need a step-free route, a quieter path, help reading a sign, or a way around a busy concourse—all while the event is moving around them.
+Static maps can’t answer that. FAQ pages can’t answer that. Even the best mobile app falls apart the moment an operational change happens mid-journey.
 
-I built **Concourse**, a context-aware smart-stadium companion for **PromptWars Virtual — Challenge 4** in the **Smart Stadiums & Tournament Operations** vertical.
+So I built **Concourse** — a context-aware smart-stadium companion — for **PromptWars Virtual — Challenge 4** (Smart Stadiums & Tournament Operations), targeting the FIFA World Cup 2026 Final at MetLife Stadium.
 
-It combines:
+One companion that understands a fan’s language, body, route preference, and what’s happening in the building right now — and turns all of it into a useful *next decision*.
 
-- a Qwen-backed concierge grounded in structured venue tools;
-- deterministic A* indoor routing across a bundled MetLife venue graph, with fastest, step-free, sensory-safe, and low-crowd modes;
-- accessibility support including large text, reduced motion, live captions, and sign reading; and
-- a protected demo-operator console where a simulated route advisory or crowd override becomes a fan-facing alert, and can refresh the displayed demo route.
+🏟️ **Qwen-backed concierge, grounded in real venue tools.** The model doesn’t guess where the nearest restroom is — it calls a bounded tool loop over a bundled MetLife graph (3,479 nodes, 8,167 edges), streamed in one of ten languages. The AI explains; deterministic tools decide.
 
-One design choice mattered most: **the crowd feed is simulated and clearly labelled as simulated.** This prototype does not claim live stadium telemetry. The goal was to demonstrate how transparent crowd conditions, accessibility preferences, venue data, and operational updates can produce a better next decision for a fan.
+🧭 **Indoor wayfinding with a personality.** A* routing runs in four modes — fastest, step-free, sensory-safe, low-crowd. A fan needing an elevator, one avoiding stairs, one overstimulated — each gets a different path through the same building.
 
-Building this pushed me to think about where AI should explain and where deterministic systems should decide: the model helps communicate; typed tools and routing logic provide the venue facts.
+📊 **Crowd-aware decisions, honestly labelled.** The crowd feed is simulated and visibly labelled — a prototype shouldn’t pretend to be live telemetry. The goal: show how transparent density forecasts, accessibility needs, and operational updates compose into a better next step.
 
-I’d love feedback from builders, accessibility advocates, and people working on live-event operations.
+♿ **Accessibility, first-class not a checkbox.** Large text, reduced motion, live captions, a camera sign-reader workflow for fans who can’t read the venue’s signs, step-free and sensory-safe routing — all wired into the same pathfinding engine everyone uses.
 
+⚡ **Real-time operator-to-fan loop.** A protected demo-operator console injects a route advisory or crowd override; the fan’s phone gets it via Server-Sent Events, excludes the affected node, and refreshes the route automatically. No polling, no page reloads.
+
+📱 **Built for the phone on stadium Wi-Fi.** Route-level lazy loading, deferred 3D, cached map assets, mobile GPU quality tiers that scale render resolution down on low-power handsets. A React PWA on Firebase Hosting, talking to an Express API on Azure.
+
+The hardest question wasn’t any single feature — it was drawing the line between what the model should *explain* and what deterministic code should *decide*. Venue facts come from typed tools and a routing engine; the model makes them legible in a fan’s language, at the moment they need them.
+
+Where would you draw that line — what should an LLM never be allowed to decide in any live-event system?
+
+Live demo: https://concourse-stadium.web.app
 Repository: https://github.com/ArpitKumar8649/Smart-Stadium
 
 @googlefordevelopers @hack2skill
 
-#BuildwithAI #PromptWarsVirtual #Challenge4 #SmartStadium #Accessibility #GenerativeAI
+#BuildwithAI #PromptWarsVirtual #Challenge4 #SmartStadium #Accessibility #GenerativeAI #Qwen
 
 ---
 

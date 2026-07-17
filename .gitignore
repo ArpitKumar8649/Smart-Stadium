@@ -62,9 +62,8 @@ test-results/
 *.orig
 *.rej
 
-# raw design exports (the app loads frontend/public/trophy.optimized.glb)
+# raw design exports
 Meshy_AI_Golden_World_Cup_Trop_0711130842_texture.glb
-trophy.glb
 ezgif-*.zip
 
 # Claude Code local state (never push)

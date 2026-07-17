@@ -348,7 +348,7 @@ export default function Concierge() {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 placeholder="Ask about the stadium…"
-                className="bg-transparent border-none w-full h-[56px] rounded-lg px-4 text-[15px] text-white placeholder-gray-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-surface-950"
+                className="h-[56px] w-full rounded-lg border-none bg-transparent px-4 text-[15px] text-white placeholder-gray-400 focus:outline-none"
                 aria-label={shareLocationForRequest ? 'Message Concourse with location shared for this request' : 'Message Concourse'}
               />
               <div id="pink-mask" className="pointer-events-none w-[30px] h-[20px] absolute bg-[#cf30aa] top-[10px] left-[5px] blur-2xl opacity-80 transition-all duration-2000 group-hover:opacity-0"></div>

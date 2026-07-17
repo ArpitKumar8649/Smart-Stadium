@@ -5,8 +5,7 @@
       "firebase.json",
       "**/.*",
       "**/node_modules/**",
-      "scenes/**",
-      "trophy.glb"
+      "scenes/**"
     ],
     "rewrites": [
       {
