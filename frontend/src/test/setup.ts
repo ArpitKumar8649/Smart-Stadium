@@ -111,9 +111,9 @@ vi.mock('firebase/auth', () => ({
   })),
   GoogleAuthProvider: vi.fn(),
   signInWithPopup: vi.fn(),
-  onIdTokenChanged: vi.fn((auth, cb) => {
+  onIdTokenChanged: vi.fn((_auth, cb) => {
     // Invoke immediately with null user by default, or could invoke with fake user
-    cb(null); 
+    cb(null);
     return () => {}; // unsubscribe function
   }),
 }));
