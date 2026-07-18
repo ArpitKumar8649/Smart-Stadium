@@ -192,7 +192,7 @@ export default function Landing() {
 
         {/* Footer */}
         <footer className="border-t border-surface-800/50 pb-12 pt-8 text-center text-sm text-surface-500">
-          <p>Built for the operational demo. (v2.0 Secured)</p>
+          <p>Built for the operational demo. (v2.1 Secured)</p>
           <p className="mt-2">
             <strong>Judge Instructions:</strong> Open <Link to="/navigate" className="text-primary hover:underline">/navigate</Link> and <Link to="/admin" className="text-accent hover:underline">/admin</Link> side-by-side to test live incident injection.
           </p>
