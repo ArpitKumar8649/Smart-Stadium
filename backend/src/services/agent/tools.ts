@@ -741,12 +741,12 @@ async function handleFindOutdoorRoute(args: unknown, context?: { location?: { la
     options[0]!;
 
   const lines = options.map((o) => `- ${o.label}: ${formatKm(o.distance_meters)}, ${formatDuration(o.duration_seconds)}`);
-  // Keep a `polyline: <encoded>` token on its own line — the frontend map parses it.
   const summary =
-    `Outdoor routes to MetLife Stadium:\n${lines.join('\n')}\npolyline: ${primary.polyline}`;
+    `Outdoor routes to MetLife Stadium:\n${lines.join('\n')}`;
 
   return ok(
     {
+      kind: 'outdoor_route',
       destination: "MetLife Stadium",
       options: options.map((o) => ({
         mode: o.mode,
@@ -754,7 +754,7 @@ async function handleFindOutdoorRoute(args: unknown, context?: { location?: { la
         distance_meters: o.distance_meters,
         duration_seconds: o.duration_seconds,
       })),
-      polyline: primary.polyline,
+      encodedPolyline: primary.polyline,
     },
     summary,
   );

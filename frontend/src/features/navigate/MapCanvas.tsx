@@ -3,6 +3,7 @@ import { geoMercator, geoPath } from 'd3-geo';
 import type { Feature, FeatureCollection, Geometry } from 'geojson';
 import { densityColor, densityLabel, zoneForecast } from './crowdStyle.ts';
 import { useReducedMotion } from '../accessibility/useReducedMotion.ts';
+import type { CrowdMapZone } from '@concourse/shared';
 
 const VIEW_WIDTH = 1000;
 const VIEW_HEIGHT = 700;
@@ -22,23 +23,6 @@ export type RouteMapPoint = {
   level: number;
   coords: [number, number];
   order: number;
-};
-
-export type CrowdMapZone = {
-  zone_id: string;
-  label: string;
-  level: number;
-  kind: 'gates' | 'concourse' | 'restrooms' | 'food' | 'seating';
-  centroid: [number, number];
-  density: number;
-  wait_seconds: number;
-  source: 'sim' | 'injected' | 'sensor';
-  predictions?: Array<{
-    offset_minutes: number;
-    density: number;
-    wait_seconds: number;
-    confidence: number;
-  }>;
 };
 
 export type MapCanvasProps = {

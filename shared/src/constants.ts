@@ -58,27 +58,5 @@ export type AlertKind = (typeof ALERT_KINDS)[number];
 export const INCIDENT_SEVERITY = ['info', 'warn', 'critical'] as const;
 export type IncidentSeverity = (typeof INCIDENT_SEVERITY)[number];
 
-export const GEMINI_MODELS = {
-  flash: 'gemini-2.5-flash',
-  pro: 'gemini-2.5-pro',
-  embed: 'text-embedding-004',
-} as const;
-
-export const FREE_TIER = {
-  flashRpm: 15,
-  flashRpd: 1500,
-  bucketSize: 12,
-  bucketRefillPerMin: 12,
-  queueDepth: 20,
-} as const;
-
 export const HEARTBEAT_MS = 20_000;
 export const CROWD_SIM_TICK_MS = 15_000;
-export const CROWD_WRITE_DELTA_THRESHOLD = 0.05;
-
-export const MATCH_IDS = {
-  qf1: 'metlife-qf1',
-  qf2: 'metlife-qf2',
-  sf1: 'metlife-sf1',
-  final: 'metlife-final',
-} as const;

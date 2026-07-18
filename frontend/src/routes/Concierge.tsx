@@ -62,20 +62,9 @@ export default function Concierge() {
     for (let i = messages.length - 1; i >= 0; i--) {
       const msg = messages[i];
       if (msg?.tools) {
-        const routeTool = msg.tools.find(t => t.name === 'find_outdoor_route' && t.ok && t.summary);
-        if (routeTool?.summary) {
-          try {
-            // The polyline sits alone on its own line and contains no whitespace,
-            // but DOES contain `}`, `\`, and `,` — so capture all non-whitespace
-            // after the `polyline:` marker (a `[^,}]` class would truncate it).
-            const match = routeTool.summary.match(/polyline:\s*(\S+)/);
-            if (match && match[1]) return match[1].trim();
-            // Alternatively if it's full JSON
-            const data = JSON.parse(routeTool.summary);
-            if (data?.polyline) return data.polyline;
-          } catch {
-            // ignore parse errors
-          }
+        const routeTool = msg.tools.find(t => t.name === 'find_outdoor_route' && t.ok);
+        if (routeTool?.data?.kind === 'outdoor_route' && typeof routeTool.data.encodedPolyline === 'string') {
+          return routeTool.data.encodedPolyline;
         }
       }
     }

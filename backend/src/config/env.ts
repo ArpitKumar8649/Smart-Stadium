@@ -30,10 +30,8 @@ const RawEnvSchema = z.object({
   // it the find_outdoor_route tool degrades gracefully instead of crashing.
   GOOGLE_ROUTES_API_KEY: z.string().min(1).optional(),
 
-  // Demo/admin console credential. Store only in backend/.env or hosting secrets.
-  // Production should use 32+ random characters; the 12-character floor keeps
-  // existing local hackathon setups compatible alongside the login limiter.
-  ADMIN_DEMO_TOKEN: z.string().min(12).optional(),
+  // Firebase Auth Project ID
+  FIREBASE_PROJECT_ID: z.string().min(1).optional(),
 
   ALLOWED_ORIGINS: z.string().default('http://localhost:5173'),
 

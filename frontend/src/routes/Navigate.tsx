@@ -1,22 +1,21 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Wordmark } from '../components/brand/Logo.tsx';
-import {
-  MapCanvas,
-  type CrowdMapZone,
-} from '../features/navigate/MapCanvas.tsx';
+import { MapCanvas } from '../features/navigate/MapCanvas.tsx';
 import { densityColor, densityLabel } from '../features/navigate/crowdStyle.ts';
 import { useAlerts } from '../features/alerts/useAlerts.ts';
 import { useA11y } from '../features/accessibility/useA11y.ts';
 import { A11yTogglePanel } from '../features/accessibility/A11yTogglePanel.tsx';
-import { getCachedRoute, saveRouteToCache } from '../lib/stadiumCache.ts';
-import {
-  NavigationRouteResponseSchema,
-  type NavigationRouteResponse,
-  type RoutingMode,
-} from '@concourse/shared';
+import type { RoutingMode, CrowdMapZone } from '@concourse/shared';
 
-const API_BASE = import.meta.env.VITE_API_BASE ?? '';
+// Extracted modules
+import { useNavigationSearch } from '../features/navigate/useNavigationSearch.ts';
+import { useCrowdHeatmap } from '../features/navigate/useCrowdHeatmap.ts';
+import { useRouteAdvisoryRefresh } from '../features/navigate/useRouteAdvisoryRefresh.ts';
+import { RouteSearchForm } from '../features/navigate/RouteSearchForm.tsx';
+import { RouteSummaryPanel } from '../features/navigate/RouteSummaryPanel.tsx';
+import { AlertFeedPanel } from '../features/navigate/AlertFeedPanel.tsx';
+import { BusiestZonesPanel } from '../features/navigate/BusiestZonesPanel.tsx';
 
 const FLOORS = [
   { level: 0, label: 'Plaza' },
@@ -31,15 +30,6 @@ const FLOORS = [
 
 type ForecastOffset = 0 | 15 | 30;
 
-type CrowdResponse = {
-  phase: string;
-  sim_minute: number;
-  zones: CrowdMapZone[];
-};
-
-type RouteResponse = NavigationRouteResponse;
-type RouteRefreshReason = 'preference' | 'operational-advisory';
-
 function densityAt(zone: CrowdMapZone, forecast: ForecastOffset): number {
   if (forecast === 0) return zone.density;
   return zone.predictions?.find((prediction) => prediction.offset_minutes === forecast)?.density ?? zone.density;
@@ -52,139 +42,50 @@ function humanTime(seconds: number): string {
 
 export default function Navigate() {
   const { prefs } = useA11y();
-  // A complete default makes the judge/demo route visible on first render while
-  // remaining fully editable for a fan's real origin and destination.
   const [fromLabel, setFromLabel] = useState('Section 144');
   const [toLabel, setToLabel] = useState('Section 108');
-  const [mode, setMode] = useState<RoutingMode>(prefs.step_free ? 'step_free' : prefs.sensory_safe ? 'sensory_safe' : 'low_crowd');
-  const [lastAutoRefresh, setLastAutoRefresh] = useState<string | null>(null);
+  const [mode, setMode] = useState<RoutingMode>(
+    prefs.step_free ? 'step_free' : prefs.sensory_safe ? 'sensory_safe' : 'low_crowd'
+  );
+
   const [activeFloor, setActiveFloor] = useState(1);
   const [forecast, setForecast] = useState<ForecastOffset>(0);
-  const [route, setRoute] = useState<RouteResponse | null>(null);
-  const [routeFromCache, setRouteFromCache] = useState(false);
-  const [crowd, setCrowd] = useState<CrowdResponse | null>(null);
   const [selectedZone, setSelectedZone] = useState<CrowdMapZone | null>(null);
-  const [loadingRoute, setLoadingRoute] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [pageVisible, setPageVisible] = useState(() => !document.hidden);
-  const reroutedAlertIds = useRef(new Set<string>());
 
   const { activeAlerts, dismissAlert } = useAlerts();
 
-  const refreshCrowd = useCallback(async () => {
-    try {
-      const response = await fetch(`${API_BASE}/api/crowd/metlife/heatmap`);
-      if (!response.ok) throw new Error(`Crowd endpoint returned ${response.status}`);
-      const data = (await response.json()) as CrowdResponse;
-      setCrowd(data);
-    } catch (caught) {
-      console.error('Failed to refresh crowd heatmap', caught);
-    }
-  }, []);
+  // 1) Navigation Search
+  const {
+    route,
+    routeFromCache,
+    loadingRoute,
+    error,
+    lastAutoRefresh,
+    setLastAutoRefresh,
+    planRoute,
+  } = useNavigationSearch({
+    fromLabel,
+    toLabel,
+    mode,
+    onRouteFound: (foundRoute) => setActiveFloor(foundRoute.from.level),
+  });
 
-  useEffect(() => {
-    const syncPageVisibility = () => setPageVisible(!document.hidden);
-    document.addEventListener('visibilitychange', syncPageVisibility);
-    return () => document.removeEventListener('visibilitychange', syncPageVisibility);
-  }, []);
+  // 2) Crowd Heatmap Polling
+  const { crowd } = useCrowdHeatmap();
 
-  useEffect(() => {
-    if (!pageVisible) return undefined;
-    void refreshCrowd();
-    const timer = window.setInterval(() => void refreshCrowd(), 15_000);
-    return () => window.clearInterval(timer);
-  }, [pageVisible, refreshCrowd]);
+  // 3) Advisory Auto-Refresh
+  useRouteAdvisoryRefresh({ activeAlerts, route, planRoute, setLastAutoRefresh });
 
+  // Sync preference mode
   useEffect(() => {
     const preference = prefs.step_free ? 'step_free' : prefs.sensory_safe ? 'sensory_safe' : null;
     if (!preference || preference === mode) return;
     setMode(preference);
   }, [mode, prefs.sensory_safe, prefs.step_free]);
 
-  const planRoute = useCallback(async (reason?: RouteRefreshReason) => {
-    if (!fromLabel.trim() || !toLabel.trim()) return;
-    const cacheKey = { fromLabel, toLabel, mode };
-    setLoadingRoute(true);
-    setError(null);
-    setRouteFromCache(false);
-    try {
-      const response = await fetch(`${API_BASE}/api/navigation/route`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ from_label: fromLabel, to_label: toLabel, mode }),
-      });
-      const payload: unknown = await response.json();
-      if (!response.ok) {
-        const message = typeof payload === 'object'
-          && payload !== null
-          && 'error' in payload
-          && typeof payload.error === 'object'
-          && payload.error !== null
-          && 'message' in payload.error
-          && typeof payload.error.message === 'string'
-          ? payload.error.message
-          : 'Could not calculate that route.';
-        throw new Error(message);
-      }
-      const parsed = NavigationRouteResponseSchema.safeParse(payload);
-      if (!parsed.success) throw new Error('The route service returned an invalid route. Please try again.');
-      const routeResponse = parsed.data;
-      setRoute(routeResponse);
-      setActiveFloor(routeResponse.from.level);
-      if (reason === 'preference') {
-        setLastAutoRefresh(`Route updated for your ${mode.replace('_', '-')} preference.`);
-      }
-      void saveRouteToCache(cacheKey, routeResponse);
-    } catch (caught) {
-      const cached = await getCachedRoute<unknown>(cacheKey);
-      const parsedCache = NavigationRouteResponseSchema.safeParse(cached);
-      if (parsedCache.success) {
-        setRoute(parsedCache.data);
-        setActiveFloor(parsedCache.data.from.level);
-        setRouteFromCache(true);
-      } else {
-        setError(caught instanceof Error ? caught.message : 'Could not calculate that route.');
-        setRoute(null);
-      }
-    } finally {
-      setLoadingRoute(false);
-    }
-  }, [fromLabel, mode, toLabel]);
-
-  const previousMode = useRef(mode);
-  useEffect(() => {
-    if (previousMode.current === mode) return;
-    previousMode.current = mode;
-    void planRoute('preference');
-  }, [mode, planRoute]);
-
-  useEffect(() => {
-    void planRoute();
-    // The complete default route makes the map useful on first render. User
-    // edits submit explicitly; preference and operational effects replan below.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  useEffect(() => {
-    const relevantAlert = activeAlerts.find((alert) =>
-      !reroutedAlertIds.current.has(alert.id)
-      && !!alert.affected_node_id
-      && route?.points.some((point) => point.id === alert.affected_node_id),
-    );
-    if (!relevantAlert) return;
-    reroutedAlertIds.current.add(relevantAlert.id);
-    setLastAutoRefresh(`Route refreshed after the ${relevantAlert.title.toLowerCase()} advisory.`);
-    void planRoute('operational-advisory');
-  }, [activeAlerts, planRoute, route]);
-
   const activeZones = useMemo(
     () => (crowd?.zones ?? []).filter((zone) => zone.level === activeFloor),
-    [activeFloor, crowd?.zones],
-  );
-
-  const sortedZones = useMemo(
-    () => [...activeZones].sort((a, b) => densityAt(b, forecast) - densityAt(a, forecast)),
-    [activeZones, forecast],
+    [activeFloor, crowd?.zones]
   );
 
   const selectedDensity = selectedZone ? densityAt(selectedZone, forecast) : 0;
@@ -213,94 +114,28 @@ export default function Navigate() {
           </p>
         </div>
 
-        <form
-          className="grid gap-2 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_170px_auto]"
-          onSubmit={(event) => {
-            event.preventDefault();
-            void planRoute();
-          }}
-        >
-          <label className="grid gap-1 text-xs text-surface-400">
-            From
-            <input
-              value={fromLabel}
-              onChange={(event) => setFromLabel(event.target.value)}
-              className="rounded-xl border border-surface-700 bg-surface-950 px-3 py-2.5 text-sm text-surface-50 outline-none focus:border-primary focus:ring-2 focus:ring-primary/30"
-              placeholder="e.g. Section 144"
-            />
-          </label>
-          <label className="grid gap-1 text-xs text-surface-400">
-            To
-            <input
-              value={toLabel}
-              onChange={(event) => setToLabel(event.target.value)}
-              className="rounded-xl border border-surface-700 bg-surface-950 px-3 py-2.5 text-sm text-surface-50 outline-none focus:border-primary focus:ring-2 focus:ring-primary/30"
-              placeholder="e.g. Women's Restroom"
-            />
-          </label>
-          <label className="grid gap-1 text-xs text-surface-400">
-            Preference
-            <select
-              value={mode}
-              onChange={(event) => setMode(event.target.value as RoutingMode)}
-              className="rounded-xl border border-surface-700 bg-surface-950 px-3 py-2.5 text-sm text-surface-50 outline-none focus:border-primary focus:ring-2 focus:ring-primary/30"
-            >
-              <option value="fastest">Fastest</option>
-              <option value="low_crowd">Avoid crowds</option>
-              <option value="step_free">Step-free</option>
-              <option value="sensory_safe">Sensory-safe</option>
-            </select>
-          </label>
-          <button
-            type="submit"
-            disabled={loadingRoute}
-            className="mt-auto rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-surface-950 transition hover:bg-primary-400 disabled:opacity-50"
-          >
-            {loadingRoute ? 'Routing…' : 'Plan route'}
-          </button>
-        </form>
+        <RouteSearchForm
+          fromLabel={fromLabel}
+          setFromLabel={setFromLabel}
+          toLabel={toLabel}
+          setToLabel={setToLabel}
+          mode={mode}
+          setMode={setMode}
+          loadingRoute={loadingRoute}
+          planRoute={() => void planRoute()}
+        />
+
         {error && <p role="alert" className="mt-3 text-sm text-red-300">{error}</p>}
         {lastAutoRefresh && <p role="status" className="mt-3 text-sm text-primary-200">{lastAutoRefresh}</p>}
       </section>
 
       <section className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
         <div className="min-w-0">
-
-          {/* Fan Alert Feed */}
-          {activeAlerts.length > 0 && (
-            <div
-              className="mb-4 space-y-2"
-              aria-live={activeAlerts.some((alert) => alert.severity === 'critical') ? 'assertive' : 'polite'}
-            >
-              {activeAlerts.map(alert => (
-                <div key={alert.id} className={`flex items-start justify-between gap-4 rounded-xl border p-3 shadow-lg ${
-                  alert.severity === 'critical' ? 'border-red-900 bg-red-950/40 text-red-100' :
-                  alert.severity === 'warn' ? 'border-amber-900 bg-amber-950/40 text-amber-100' :
-                  'border-blue-900 bg-blue-950/40 text-blue-100'
-                }`}>
-                  <div>
-                    <h3 className="text-sm font-bold">{alert.title}</h3>
-                    <p className="mt-1 text-xs opacity-90">{alert.body}</p>
-                  </div>
-                  <div className="flex shrink-0 items-center gap-2">
-                    <button
-                      onClick={() => void planRoute()}
-                      className="rounded-lg bg-surface-950/50 px-3 py-1.5 text-xs font-semibold hover:bg-surface-900/50"
-                    >
-                      Re-plan Route
-                    </button>
-                    <button
-                      onClick={() => dismissAlert(alert.id)}
-                      className="rounded-lg px-2 py-1.5 text-xs opacity-70 hover:bg-surface-950/50 hover:opacity-100"
-                      aria-label="Dismiss alert"
-                    >
-                      ✕
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+          <AlertFeedPanel
+            activeAlerts={activeAlerts}
+            planRoute={() => void planRoute()}
+            dismissAlert={dismissAlert}
+          />
 
           <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
             <div className="flex max-w-full gap-1 overflow-x-auto rounded-xl border border-surface-800 bg-surface-900 p-1" role="group" aria-label="Stadium floor">
@@ -367,50 +202,7 @@ export default function Navigate() {
         </div>
 
         <aside className="space-y-4">
-          <section className="rounded-2xl border border-surface-800 bg-surface-900 p-4">
-            <p className="font-mono text-xs uppercase tracking-widest text-primary">Route</p>
-            {route ? (
-              <>
-                <div className="mt-3 flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-sm font-semibold text-surface-50">{route.from.label}</p>
-                    <p className="mt-1 text-xs text-surface-400">to {route.to.label}</p>
-                  </div>
-                  <span className="rounded-pill bg-primary-900 px-2.5 py-1 text-xs font-bold text-primary-200">
-                    {humanTime(route.total_seconds)}
-                  </span>
-                </div>
-                <div className="mt-4 grid grid-cols-2 gap-2 text-xs">
-                  <div className="rounded-lg bg-surface-950 p-2.5">
-                    <span className="block text-surface-500">Distance</span>
-                    <strong className="mt-1 block text-surface-100">{Math.round(route.total_distance_m)}m</strong>
-                  </div>
-                  <div className="rounded-lg bg-surface-950 p-2.5">
-                    <span className="block text-surface-500">Access</span>
-                    <strong className="mt-1 block text-surface-100">{route.step_free ? 'Step-free' : 'Standard'}</strong>
-                  </div>
-                </div>
-                {route.warnings.length > 0 && (
-                  <div className="mt-3 rounded-lg border border-amber-700/60 bg-amber-950/30 p-2.5 text-xs text-amber-200">
-                    {route.warnings[0]}
-                  </div>
-                )}
-                {routeFromCache && (
-                  <p className="mt-3 text-xs text-amber-200">Showing your saved route while live routing reconnects.</p>
-                )}
-                <ol className="mt-4 max-h-48 space-y-2 overflow-y-auto border-s border-surface-700 ps-3 text-xs text-surface-300">
-                  {route.steps.slice(0, 12).map((step, index) => (
-                    <li key={`${step.instruction}-${index}`} className="relative ps-1">
-                      <i className="absolute -start-[19px] top-1.5 h-2 w-2 rounded-full bg-accent" aria-hidden="true" />
-                      {step.instruction}
-                    </li>
-                  ))}
-                </ol>
-              </>
-            ) : (
-              <p className="mt-3 text-sm text-surface-400">Plan a route to see turn-by-turn guidance.</p>
-            )}
-          </section>
+          <RouteSummaryPanel route={route} routeFromCache={routeFromCache} />
 
           <section className="rounded-2xl border border-surface-800 bg-surface-900 p-4" aria-live="polite">
             <p className="font-mono text-xs uppercase tracking-widest text-primary">Zone detail</p>
@@ -440,28 +232,11 @@ export default function Navigate() {
             )}
           </section>
 
-          <section className="rounded-2xl border border-surface-800 bg-surface-900 p-4">
-            <p className="font-mono text-xs uppercase tracking-widest text-primary">Busiest on this floor</p>
-            <ul className="mt-3 space-y-2">
-              {sortedZones.slice(0, 4).map((zone) => {
-                const density = densityAt(zone, forecast);
-                return (
-                  <li key={zone.zone_id}>
-                    <button
-                      onClick={() => setSelectedZone(zone)}
-                      className="flex w-full items-center justify-between gap-3 rounded-lg px-2 py-1.5 text-left text-xs transition hover:bg-surface-800 focus-visible:ring-2 focus-visible:ring-primary"
-                    >
-                      <span className="min-w-0 truncate text-surface-300">{zone.label}</span>
-                      <span className="inline-flex shrink-0 items-center gap-1.5 font-semibold text-surface-100">
-                        <i className="h-2 w-2 rounded-full" style={{ background: densityColor(density) }} aria-hidden="true" />
-                        {Math.round(density * 100)}%
-                      </span>
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-          </section>
+          <BusiestZonesPanel
+            activeZones={activeZones}
+            forecast={forecast}
+            setSelectedZone={setSelectedZone}
+          />
 
           <A11yTogglePanel />
         </aside>

@@ -1,4 +1,4 @@
-import type { CrowdMapZone } from './MapCanvas.tsx';
+import type { CrowdMapZone } from '@concourse/shared';
 
 export function densityColor(density: number): string {
   if (density >= 0.8) return '#EF4444';

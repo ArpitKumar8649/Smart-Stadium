@@ -50,9 +50,10 @@ export default tseslint.config(
   },
   {
     // Tests can be looser.
-    files: ['**/*.test.ts', '**/*.test.tsx'],
+    files: ['**/*.test.ts', '**/*.test.tsx', 'frontend/src/test/**/*.{ts,tsx}'],
     rules: {
       '@typescript-eslint/no-non-null-assertion': 'off',
+      'react-refresh/only-export-components': 'off',
     },
   },
 );

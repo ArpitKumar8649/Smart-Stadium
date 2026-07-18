@@ -18,6 +18,9 @@
     "lint": "npm run lint --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
+    "test:frontend": "npm run test -w frontend",
+    "test:frontend:coverage": "npm run test:coverage -w frontend",
+    "test:e2e": "npm run test:e2e -w frontend",
     "import:metlife": "tsx scripts/import-mappedin.ts",
     "import:metlife:write": "tsx scripts/import-mappedin.ts --write",
     "clean": "rm -rf shared/dist backend/dist frontend/dist"

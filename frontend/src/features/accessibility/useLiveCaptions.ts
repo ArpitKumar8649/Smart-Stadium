@@ -11,7 +11,7 @@ function asrSocketUrl(): string {
 }
 
 /** Float32 [-1,1] mono at `inRate` → Int16 PCM at 16 kHz (what the ASR wants). */
-function downsampleToPcm16(input: Float32Array, inRate: number): ArrayBuffer {
+export function downsampleToPcm16(input: Float32Array, inRate: number): ArrayBuffer {
   const outRate = 16000;
   if (inRate === outRate) {
     const out = new Int16Array(input.length);

@@ -24,7 +24,7 @@ export default function Admin() {
     setAuthed,
     authError,
     authLoading,
-    authenticate,
+    signOut,
     clearError,
   } = useAdminSession();
 
@@ -97,11 +97,9 @@ export default function Admin() {
 
   const activeZones = useMemo(() => (crowd?.zones ?? []).filter(z => z.level === activeFloor), [activeFloor, crowd?.zones]);
 
-  if (!authed) {
+  if (!authed || authLoading) {
     return (
       <AdminLoginForm
-        onLogin={authenticate}
-        loading={authLoading}
         error={authError}
         clearError={clearError}
       />
@@ -118,6 +116,7 @@ export default function Admin() {
         <div className="flex items-center gap-4 text-xs font-mono">
           <span className="text-surface-400">Phase: <strong className="text-surface-100">{crowd?.phase || '...'}</strong></span>
           <span className="text-surface-400">Min: <strong className="text-surface-100">{crowd?.sim_minute || '...'}</strong></span>
+          <button onClick={signOut} className="text-primary hover:underline bg-transparent border-none cursor-pointer">Sign Out</button>
           <Link to="/" className="text-primary hover:underline">Exit to Fan App</Link>
         </div>
       </header>

@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { NavigationRouteRequestSchema } from '@concourse/shared';
+import { z } from 'zod';
 import { findNodeByLabel, getGraph, searchNodes } from '../services/graph/loader.js';
 import { route } from '../services/graph/astar.js';
 import { getCrowdSimulator } from '../services/crowd/simulator.js';
@@ -84,10 +85,14 @@ navigationRouter.post('/navigation/route', (req, res) => {
   });
 });
 
+const SearchQuerySchema = z.string().trim().max(120).default('');
+
 /** Lightweight autocomplete endpoint for map route controls. */
 navigationRouter.get('/navigation/search', (req, res) => {
-  const query = typeof req.query.q === 'string' ? req.query.q : '';
-  if (query.trim().length < 2) {
+  const queryResult = SearchQuerySchema.safeParse(req.query.q);
+  const query = queryResult.success ? queryResult.data : '';
+
+  if (query.length < 2) {
     res.json({ candidates: [] });
     return;
   }

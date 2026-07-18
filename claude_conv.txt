@@ -1,0 +1,736 @@
+╭─── Claude Code v2.1.212 ─────────────────────────────────────────────────────╮
+│                                 │ Tips for getting started                   │
+│          Welcome back!          │ Run /init to create a CLAUDE.md file with… │
+│                                 │ ────────────────────────────────────────── │
+│             ▐▛███▜▌             │ What's new                                 │
+│            ▝▜█████▛▘            │ `/fork` now copies your conversation into… │
+│              ▘▘ ▝▝              │ Added `claude auto-mode reset` to restore… │
+│                                 │ Added a session-wide limit on WebSearch t… │
+│   glm-5.2 · API Usage Billing   │ /release-notes for more                    │
+│    /workspaces/Smart-Stadium    │                                            │
+╰──────────────────────────────────────────────────────────────────────────────╯
+
+
+❯ hi                                                                            
+
+  Thought for 3s (ctrl+o to expand)
+
+● Hi! I see you're working in the Smart-Stadium repo. What would you like to do
+  today?
+
+✻ Brewed for 4s
+
+❯ /effort max                                                                   
+  ⎿  Set effort level to max (this session only): Maximum capability with
+     deepest reasoning. May use excessive tokens resulting in long response
+     times or overthinking. Use sparingly for the hardest tasks.
+
+❯ hey analze this whole project codes ...                                       
+
+  Thought for 9s (ctrl+o to expand)
+
+● I'll analyze the whole Smart-Stadium project. Let me start by exploring the
+  structure and key files in parallel.
+
+● Bash(echo "=== ROOT LISTING ===" && ls -la && echo "" && echo "=== GIT LOG
+      (last 20) ===" && git log --oneline -20 && echo "" && echo "=== BRANCHES
+      ===" && git branc…)
+  ⎿  === ROOT LISTING ===
+     total 1240
+     drwxrwxrwx+ 16 codespace root        4096 Jul 17 11:00 .
+     … +57 lines (ctrl+o to expand)
+
+  Thought for 18s, searched for 1 pattern (ctrl+o to expand)
+
+● I'll analyze the whole project. Let me fan out parallel exploration agents
+  across the major subsystems while I read the top-level docs and configs
+  myself.
+
+  Read 2 files, listed 1 directory (ctrl+o to expand)
+
+● 4 background agents launched (↓ to manage)
+   ├ Analyze backend subsystem
+   ├ Analyze frontend subsystem
+   ├ Analyze shared, data, stadium assets
+   └ Analyze infra, CI/CD, deployment
+
+  Thought for 18s (ctrl+o to expand)
+
+● I've kicked off 4 parallel exploration agents (backend, frontend, data/assets,
+  infra/CI-CD). While they work, let me read the evaluation criteria and house
+  rules myself to frame the analysis.
+
+  Thought for 28s, read 6 files (ctrl+o to expand)
+
+● Already I'm noticing the .agents/rules describe a Gemini + Firebase-auth + 
+  Firestore design, while the README/EVALUATION describe a Qwen/DashScope + 
+  server-passcode + simulated crowd design — the rules appear stale. Let me
+  confirm details while the four analysis agents run.
+
+  Thought for 16s, read 2 files (ctrl+o to expand)
+
+● I've got the top-level picture. Four analysis agents are running in the
+  background on the backend, frontend, data/shared/stadium, and infra/CI-CD.
+  While they work, let me read the remaining governance rule and evidence files
+  (these don't overlap with the agents' code-focused work).
+
+  Read 3 files (ctrl+o to expand)
+
+● Bash(echo "=== git status (full, incl untracked) ===" && git status
+      --porcelain=v1 | head -80 && echo "" && echo "=== diff stat vs origin/main
+      ===" && git diff --sta…)
+  ⎿  === git status (full, incl untracked) ===
+
+     === diff stat vs origin/main ===
+     … +4 lines (ctrl+o to expand)
+
+● I have the README, configs, rules, and deployment setup in hand, plus a prior
+  code-review log. Four parallel agents are analyzing backend, frontend,
+  data/assets, and CI/CD in depth. Let me gather a couple more key pieces while
+  they run.
+
+  Thought for 29s, searched for 1 pattern, read 28 files (ctrl+o to expand)
+
+● The backend picture is clear. Now let me read the shared schemas (especially
+  the ones the code review flagged) and the key frontend files.
+
+  Thought for 10s, read 4 files (ctrl+o to expand)
+
+● I have a thorough picture of the backend. Let me look at a few critical
+  frontend files (to verify the prior review's findings) and the data directory
+  while the explorer agents finish.
+
+  Thought for 26s, searched for 1 pattern, read 12 files, listed 2 directories (ctrl+o to expand)
+
+● Agent "Analyze frontend subsystem" finished · 5m 42s
+
+● The frontend agent finished. Let me round out my own reading of the remaining
+  shared contracts, tests, and the concierge prompt while the other three agents
+  run.
+
+  Thought for 1m 58s, read 7 files (ctrl+o to expand)
+
+● I've now read the substance of every backend source file, all shared schemas,
+  the key frontend files, all infra/CI config, the agent rules, and the prior
+  review transcript. One of the four parallel analysis agents (frontend) has
+  already returned; its findings corroborate my own reading. Here's the full
+  picture.
+
+  ---
+  Concourse (Smart-Stadium) — Full Project Analysis
+
+  What this is
+
+  A context-aware smart-stadium companion built for PromptWars Virtual Challenge
+  4 (FIFA World Cup 2026). A fan-facing React PWA backed by a
+  TypeScript/Express API where a Qwen LLM concierge is force-grounded in
+  deterministic tools (venue lookup, A* indoor routing, crowd state, optional
+  Google outdoor routes). Live at concourse-stadium.web.app (Firebase) + Azure
+  API.
+
+  It's an npm workspaces monorepo (shared, backend, frontend), Node 22, strict
+  TS, Vitest + Playwright, GitHub Actions CI + dual deploy (Azure App Service
+  backend, Firebase Hosting frontend).
+
+  frontend/  React 18 + Vite PWA (Cesium 3D + Leaflet 2D + SSE chat)
+  backend/   Express + Qwen agent + A* router + crowd sim + ASR/TTS/vision
+  shared/    Zod schemas (single source of truth for contracts)
+  data/      MetLife venue graph (3,479 nodes / 8,167 edges) + fixtures + system
+  prompt
+  stadium/   Mappedin-exported GeoJSON/JSON (source for frontend/public)
+
+  ---
+  Backend
+
+  Stack: Express 4, Helmet + CORS allowlist + compression + express-rate-limit,
+  pino (with redaction), Zod, openai SDK pointed at DashScope's
+  OpenAI-compatible endpoint, ws for ASR. Fail-closed design — no
+  ADMIN_DEMO_TOKEN means no mutation endpoints (admin-auth.ts:22).
+
+  Endpoint inventory
+
+  Method: GET
+  Path: /api/health, /api/version
+  Auth: –
+  Purpose: Liveness
+  ────────────────────────────────────────
+  Method: POST
+  Path: /api/chat
+  Auth: rate-limited (20/min)
+  Purpose: Concierge turn, SSE stream
+  ────────────────────────────────────────
+  Method: GET
+  Path: /api/crowd/:venueId/heatmap, …/zone/:zoneId
+  Auth: –
+  Purpose: Simulated crowd
+  ────────────────────────────────────────
+  Method: POST
+  Path: /api/navigation/route
+  Auth: –
+  Purpose: A* route, labels → map points
+  ────────────────────────────────────────
+  Method: GET
+  Path: /api/navigation/search
+  Auth: –
+  Purpose: Autocomplete
+  ────────────────────────────────────────
+  Method: POST
+  Path: /api/vision/sign-reader
+  Auth: rate-limited (10/min)
+  Purpose: Qwen-VL sign OCR
+  ────────────────────────────────────────
+  Method: GET
+  Path: /api/alerts/stream
+  Auth: – (cap 100)
+  Purpose: SSE fan alerts + replay buffer
+  ────────────────────────────────────────
+  Method: GET
+  Path: /api/admin/session
+  Auth: Bearer
+  Purpose: Preflight credential check
+  ────────────────────────────────────────
+  Method: POST
+  Path: /api/admin/briefing
+  Auth: Bearer
+  Purpose: LLM operational briefing (5-min cache)
+  ────────────────────────────────────────
+  Method: POST
+  Path: /api/admin/incident, /crowd/override
+  Auth: Bearer
+  Purpose: Inject sim scenario → fan alert
+  ────────────────────────────────────────
+  Method: POST
+  Path: /api/admin/demo/{enable,disable}, GET …/status
+  Auth: Bearer
+  Purpose: Pin/restore sim clock
+  ────────────────────────────────────────
+  Method: POST
+  Path: /api/audio/tts
+  Auth: Bearer + rate-limited
+  Purpose: Qwen translate → CosyVoice MP3 (disk cache)
+  ────────────────────────────────────────
+  Method: WS
+  Path: /api/audio/asr
+  Auth: origin + capacity guarded
+  Purpose: Live captions → DashScope realtime ASR
+
+  The concierge loop (concierge.ts) is the heart: model → (tool calls → tool
+  results → model)* → text, capped at MAX_HOPS=6. System prompt
+  (data/prompts/concierge.system.md) makes deterministic tool-grounding the 
+  "first and highest law" — the model may never invent a gate/section/route;
+  every fact must come from a tool result. Tools (tools.ts) resolve fuzzy labels
+  to real node IDs via the graph loader and route with A*; node IDs never leak
+  to the model. User input is wrapped in <fan_message> sentinels
+  (concierge.ts:52,71) as prompt-injection defense.
+
+  A* router (astar.ts): clean min-heap implementation, admissible haversine/1.4
+  m·s⁻¹ heuristic, mode-aware weighting that only adds cost (step-free = +100k
+  for stairs, sensory-safe = softer, low-crowd = quadratic density penalty).
+  Accessibility is a weight, never a filter → a route always exists. Supports a
+  blockedNode callback so operational advisories re-route around closed nodes.
+
+  Crowd simulator (simulator.ts): honestly labelled source: "sim", derived from
+  the real graph (zones = level × kind), driven by a matchday keyframe curve
+  with T+15/T+30 projections. Admin can pin the clock (demo) or override a zone.
+
+  LLM seam (provider.ts / qwen.ts): single interface, Qwen-only impl.
+  Token-bucket concurrency guard (rate-limit.ts) with an abort-aware wait queue
+  so disconnected clients don't pile up. ASR/TTS/vision all share the DashScope
+  key server-side.
+
+  ---
+  Frontend
+
+  Stack: React 18 + Vite 5 + Tailwind, React Router 6, Cesium/Resium (3D),
+  Leaflet (2D), R3F/three (trophy hero), react-markdown. No global store — just
+  two contexts (A11yContext, AlertContext); feature state is route-local. Shared
+  Zod schemas validate every backend response client-side. Lazy-loaded routes +
+  lazy 3D + deferred trophy + PWA (Workbox) keep the phone-conscious promise.
+
+  Routes: / Landing (hero + 3D trophy + feature grid), /concierge (chat + 2D/3D
+  map, 10 response languages, RTL, GPS opt-in, sign-reader + live captions),
+  /navigate (tactical map, from/to/mode, floor tabs, forecast toggle,
+  auto-replans on SSE alerts intersecting the route), /admin (Bearer-gated ops
+  console: AI briefing, PA translator, guided-demo toggle, incident injection),
+  * 404.
+
+  3D map (StadiumMap3D.tsx, 1160 lines) is the centerpiece: two modes —
+  photorealistic (Google 3D Tiles) and structure (MetLife's 8 real Mappedin
+  levels extruded as a stacked cutaway). Find-my-seat search over 367 real bowl
+  sections, concierge-driven section highlight, vertical-circulation columns
+  (elevators/escalators/stairs/ramps) drawn through real per-floor stops,
+  facility pins, indoor route that climbs the stack. Handset GPU profiling +
+  requestRenderMode + render-loop paused when tab hidden. A ThreeDErrorBoundary
+  permanently falls back to 2D on any Cesium crash.
+
+  Realtime: AlertContext opens an EventSource to /api/alerts/stream with
+  exponential-backoff reconnect; in production it errors out if VITE_API_BASE is
+  unset (avoids Firebase's SPA-rewrite-returns-HTML trap). useLiveCaptions
+  captures mic → downsamples to 16 kHz PCM16 → WS to backend ASR bridge, with an
+  attempt-counter pattern that prevents stale callbacks.
+
+  ---
+  Data & assets
+
+  - data/venue/metlife.graph.json (3.4 MB) — the routing graph, loaded once +
+  Zod-validated.
+  - stadium/ — Mappedin exports (enterprise metadata, floor/space GeoJSON, node
+  geojson 2.3 MB). Produced by scripts/import-mappedin.ts. No Mappedin SDK 
+  runtime dependency — only consumed as static GeoJSON.
+  - frontend/public/ (~25 MB) — trophy model, stadium GeoJSON, HDR environment,
+  basis transcoder. Several unused assets (see findings).
+
+  ---
+  Infra / CI / deploy
+
+  - CI (ci.yml): typecheck → lint → test → Playwright e2e → frontend build →
+  grep the bundle for ADMIN_DEMO_TOKEN/playwright-local-admin-token → backend
+  build.
+  - Backend deploy (deploy-backend-azure.yml): OIDC Azure login, builds
+  shared+backend, assembles a prod package with --omit=dev, sets ALLOWED_ORIGINS
+  from a repo variable, enables WebSockets, deploys via azure/webapps-deploy.
+  Gated on non-secret Azure vars being set.
+  - Frontend deploy (deploy-frontend-firebase.yml): builds shared→backend
+  tests→frontend (with VITE_API_BASE + VITE_CESIUM_ION_TOKEN), deploys to
+  Firebase Hosting live channel, then smoke-tests the hosted HTML/JS MIME, 
+  /navigate SPA route, Azure /api/health CORS, and the /api/alerts/stream SSE 
+  content-type + CORS.
+  - firebase.json: strong headers — X-Frame-Options: DENY, a tight CSP
+  ('unsafe-eval' 'wasm-unsafe-eval' for Cesium, explicit img/connect sources),
+  Permissions-Policy. Immutable cache for /assets/**.
+  - Secrets hygiene is clean: .env gitignored, .env.example placeholders only,
+  no hardcoded keys in source (I grepped), admin token is memory-only in the
+  browser + server-side only.
+
+  ---
+  ⚠️ The most important finding: uncommited_codereview.txt is stale
+
+  There's a committed file uncommited_codereview.txt (despite the name, the
+  working tree is clean — it's tracked) containing a prior multi-agent review
+  that lists 15 verified regressions. I checked every one against the current
+  code. All 15 have already been fixed in the committed tree (last commit
+  dd8e3cc "finalize stadium demo refinements"). Examples:
+
+  ┌─────────────────────────┬───────────────────────────────────────────────┐
+  │      Stale finding      │             Current code reality              │
+  ├─────────────────────────┼───────────────────────────────────────────────┤
+  │ Admin login trims       │ Admin.tsx:121 does setToken(candidate) with   │
+  │ passcode but retains    │ the trimmed value ✅ fixed                    │
+  │ untrimmed token         │                                               │
+  ├─────────────────────────┼───────────────────────────────────────────────┤
+  │ ASR trusts              │                                               │
+  │ client-supplied         │ asr.ts:241-245 reads the rightmost valid IP   │
+  │ leftmost                │ ✅ fixed                                      │
+  │ X-Forwarded-For         │                                               │
+  ├─────────────────────────┼───────────────────────────────────────────────┤
+  │ Failed-passcode limiter │ app.ts:97-98 applies it to all /api/admin +   │
+  │  only protects the      │ /api/audio/tts ✅ fixed                       │
+  │ preflight               │                                               │
+  ├─────────────────────────┼───────────────────────────────────────────────┤
+  │ Concierge resends       │ useConcierge.ts:52-58 filters empties +       │
+  │ empty/>2000-char        │ truncates to 2000 ✅ fixed                    │
+  │ history                 │                                               │
+  ├─────────────────────────┼───────────────────────────────────────────────┤
+  │ 3D route bypasses       │ floorData.ts:208-211 runs                     │
+  │ shared schema           │ NavigationRouteResponseSchema.safeParse ✅    │
+  │ validation              │ fixed                                         │
+  ├─────────────────────────┼───────────────────────────────────────────────┤
+  │ useReducedMotion lacks  │ useReducedMotion.ts:20-28 has the addListener │
+  │ Safari legacy fallback  │  fallback ✅ fixed                            │
+  ├─────────────────────────┼───────────────────────────────────────────────┤
+  │ CSP may block Cesium    │ firebase.json:34 includes 'wasm-unsafe-eval'  │
+  │ wasm                    │ ✅ fixed                                      │
+  ├─────────────────────────┼───────────────────────────────────────────────┤
+  │ TTS deletes expired     │ tts.ts:157-178 retains stale entry and serves │
+  │ cache, losing outage    │  it on upstream failure ✅ fixed              │
+  │ fallback                │                                               │
+  ├─────────────────────────┼───────────────────────────────────────────────┤
+  │ Briefing returns 502 on │ admin.ts:312-317 falls back to deterministic  │
+  │  partial LLM JSON       │ briefing ✅ fixed                             │
+  ├─────────────────────────┼───────────────────────────────────────────────┤
+  │ Briefing mislabels      │ BriefingRequestSchema is z.literal('metlife') │
+  │ MetLife data with       │  — can't be arbitrary ✅ fixed                │
+  │ arbitrary venue_id      │                                               │
+  ├─────────────────────────┼───────────────────────────────────────────────┤
+  │ Sign-reader requests    │ vision.ts:32-44 aborts on res.close and       │
+  │ not canceled on         │ passes signal through ✅ fixed                │
+  │ disconnect              │                                               │
+  ├─────────────────────────┼───────────────────────────────────────────────┤
+  │ Restoring demo doesn't  │ admin.ts:156 calls invalidateBriefingCache()  │
+  │ invalidate briefing     │ on disable ✅ fixed                           │
+  │ cache                   │                                               │
+  └─────────────────────────┴───────────────────────────────────────────────┘
+
+  Recommendation: delete uncommited_codereview.txt — it's misleading and will
+  confuse any future reviewer (human or agent) into re-chasing already-fixed
+  ghosts.
+
+  ---
+  Real findings that do stand (verified)
+
+  Cleanup / size (medium priority)
+  1. public/trophy.glb is 15 MB and useGLTF.preload'd, while
+  trophy.optimized.glb (1 MB) sits unused next to it (TrophyModel.tsx hardcodes
+  /trophy.glb). Switch to the optimized model.
+  2. ~3 MB of dead public assets: components/hero/FrameSequence.tsx (277 lines,
+  never imported), public/environments/potsdamer_platz_1k.hdr (1.5 MB,
+  unreferenced), public/basis/* (576 KB, unreferenced),
+  public/stadium/floorstack.json (warmed but never fetched).
+  3. Stale constants: shared/constants.ts still exports GEMINI_MODELS and
+  FREE_TIER (Gemini-era leftovers after the ADR 0003 migration to Qwen). Unused
+  by the backend.
+
+  Correctness (minor)
+  4. Admin.tsx:362 — activeZones.sort(...) mutates the memoized array in render
+  (should spread first, as Navigate.tsx:186 does).
+  5. concierge.ts:71-73 — the <fan_message> injection wrapper is skipped for
+  short follow-ups (<50 chars) when history exists. Deliberate (so
+  "Yes"/"Thanks" read naturally) but it weakens injection isolation for short
+  payloads like "ignore rules". Tool-grounding is the real defense, so risk is
+  low, but worth knowing.
+
+  Security (worth verifying, not definitive)
+  6. app.ts:26 sets trust proxy: 1. express-rate-limit keys on req.ip, which
+  with trust proxy: 1 is derived from the (client-suppliable) X-Forwarded-For.
+  The ASR bridge correctly reads the rightmost IP, but the REST rate limiters do
+  not — a client rotating X-Forwarded-For could dilute per-IP limits. On Azure
+  App Service the front-end appends the real client IP, so exposure depends on
+  whether the app is reachable behind that proxy only. Worth confirming the
+  limiter uses a hardened key getter in prod.
+
+  Doc-vs-code drift
+  7. .agents/rules/* describe a Firebase-UID + Gemini architecture (admin auth
+  via Firebase ID token + ADMIN_UIDS allowlist; Gemini models). The actual
+  implementation uses a server-side admin passcode (timingSafeEqual) +
+  Qwen/DashScope. The README is accurate; the rules are aspirational/stale and
+  will mislead agents working in this repo.
+  8. README says "ten selectable response-language preferences";
+  SUPPORTED_LOCALES has 12; rule 40 says 12. Minor inconsistency.
+
+  ---
+  Strengths
+
+  - Honest demo boundaries baked into the UX and prompts: crowd data labelled
+  "simulated", no live-sensor claims, the concierge is told to say so if asked.
+  - Genuinely grounded agent: tools are the only source of venue truth; node IDs
+  never reach the model; the loop is bounded; injection sentinels +
+  history-cleaning.
+  - Solid security baseline: Helmet, CORS allowlist, Zod at every boundary,
+  constant-time token compare, fail-closed admin, redacted logs, server-only
+  secrets, bundle-leak grep in CI.
+  - Phone-conscious: lazy routes, deferred 3D, handset GPU tiers, render-loop
+  paused when hidden, cache warmup respects Save-Data/2G, route cache for
+  offline.
+  - Real test coverage: A* modes, crowd sim, closure-aware re-routing, public
+  contracts, fail-closed admin, anonymous-PA denial — all in-process; plus a
+  two-browser Playwright operator/fan flow.
+  - Deploy smoke tests actually verify CORS + SSE end-to-end against the live
+  Azure API, not just that files uploaded.
+
+  ---
+  Bottom line
+
+  This is a well-architected, honestly-scoped hackathon project with a real
+  grounded-agent design, strong security/testing/deploy hygiene, and a genuinely
+  impressive 3D/2D map integration. The codebase is in good shape — the main 
+  cleanup is deleting the stale uncommited_codereview.txt, swapping the 15 MB
+  trophy for its 1 MB optimized sibling, removing ~3 MB of dead public assets,
+  and reconciling the .agents/rules docs with the actual Qwen/passcode
+  implementation.
+
+  Want me to (a) verify finding #6 (rate-limiter IP keying) by tracing
+  express-rate-limit's default key against trust proxy, (b) open a cleanup PR
+  for the dead assets + stale review file, or (c) dig deeper into any one
+  subsystem? The other three analysis agents are still running in the background
+  and may surface additional detail, which I can fold in when they return.
+
+✻ Baked for 7m 15s
+
+● Agent "Analyze infra, CI/CD, deployment" finished · 7m 13s
+
+  Thought for 44s (ctrl+o to expand)
+
+● The infra analysis agent returned. It corroborates my read on most things, but
+  it also relied on the stale uncommited_codereview.txt for three "findings" 
+  (#2 CSP, #3 admin throttle, #4 ASR IP) that I already verified are fixed in 
+  the current code — so I'm discarding those. However, it surfaced several new
+  infra-specific facts I didn't check. Let me verify the concrete ones before
+  folding them in, since the agent proved it can be wrong about code details.
+  Thought for 26s, listed 1 directory (ctrl+o to expand)
+
+● The infra agent returned and corroborates my analysis, plus surfaced a few
+  findings I'd missed. Two agents (backend, data/assets) are still running.
+  Folding in the new confirmed items:
+
+  Newly confirmed findings
+
+  Real bug — Node version mismatch across the toolchain (I missed this):
+  - .nvmrc → 20.11.1
+  - backend/Dockerfile → FROM node:20.11-alpine
+  - but package.json → engines.node: ">=22 <25" and both deploy workflows + CI
+  pin 22.x
+
+  Local devs following .nvmrc and anyone building the Docker image run Node 20,
+  outside the declared engine range. The Dockerfile is also not built in CI (not
+  used by the Azure path, which deploys code directly), so it can rot
+  unnoticed. Fix: bump .nvmrc and the Dockerfile base to 22.
+
+  Doc-vs-code drift (now triple-confirmed):
+  - .agents/rules/30-realtime.md + ADR 0002 say "No WebSockets — redirect to
+  SSE," yet the backend uses ws for both ASR (asr.ts) and TTS (tts.ts), and the
+  Azure deploy explicitly enables WebSockets.
+  - .agents/rules/10-security.md says admin routes require a Firebase ID token +
+  ADMIN_UIDS allowlist; the code uses ADMIN_DEMO_TOKEN + timingSafeEqual.
+  ADMIN_UIDS appears nowhere in backend/.
+  - The entire .gemini/antigravity/brain/ (project.md, architecture.md, ADRs
+  0003/0007) describes a Gemini backbone; the code ships Qwen/DashScope.
+  - Rule 20-accessibility.md claims "axe-core runs in CI" — grep confirms
+  axe-core is referenced nowhere; ci.yml only runs Playwright.
+
+  Operational: no .firebaserc exists — the Firebase project lives only in the
+  FIREBASE_PROJECT_ID repo var, so bare firebase deploy/rollback from a terminal
+  won't know the target (this is what blocked the terminal deploy in the
+  uncommited_codereview.txt transcript). backend/start.sh does an unconditional
+  source .env.
+
+  One correction to the infra agent
+
+  The infra agent re-raised the codereview's ASR X-Forwarded-For and
+  admin-throttling findings as open — but it parroted the codereview without
+  re-checking the current code. My direct read shows both are already fixed:
+  asr.ts:241-245 reads the rightmost valid IP (.reverse().find(...)), and
+  app.ts:97-98 applies the failed-auth limiter to all of /api/admin +
+  /api/audio/tts. The genuinely-open security item remains the separate
+  REST-rate-limiter concern: trust proxy: 1 makes Express's req.ip (which
+  express-rate-limit keys on by default) honor the client-suppliable leftmost
+  X-Forwarded-For — so per-IP REST limits can be diluted by header rotation.
+  That one I still want to verify by tracing the limiter's key getter.
+
+  Two agents still running. Want me to proceed with the cleanup PR (stale
+  uncommited_codereview.txt + ~18 MB dead assets + Node version bump + .nvmrc),
+  or wait for the remaining two agents to finish first?
+
+✻ Cogitated for 1m 30s
+
+● Agent "Analyze backend subsystem" finished · 10m 49s
+
+  Read 1 file (ctrl+o to expand)
+
+● The backend agent surfaced some genuinely new, verified findings beyond what
+  I'd already found. Let me note them. The fourth agent (data/assets) is still
+  running.
+
+  New backend findings worth highlighting (verified against my own read)
+
+  Real correctness bugs:
+
+  1. find_route tool ignores operational blockages (tools.ts:380-382) — the
+  concierge tool calls route() with a crowd penalty but no blockedNode argument,
+  while the REST endpoint /api/navigation/route does pass
+  alertStore.activeAffectedNodeIds() (navigation.ts:48-56). So the agent can
+  route a fan through a node that the 2D Navigate screen treats as closed by an
+  active advisory — inconsistent grounding between the two surfaces. This is the
+  kind of thing that would embarrass a live demo. Worth fixing.
+  2. location_node_id mis-resolved as a label (chat.ts:45) —
+  findNodeByLabel(location_node_id) runs fuzzy label matching on what the
+  contract names as a node id (n_611e7c60… will never fuzzy-match). So
+  locationLabel is silently dropped from the concierge prompt. Should be
+  getGraph().nodeById.get(location_node_id). Currently moot because the frontend
+  always sends undefined, but the contract is broken.
+  3. occupancy_pct is mathematically mislabeled (admin.ts:212-218) — it's
+  sum(densities) / count(zones) × 100 = "average zone density %", not stadium
+  occupancy. The briefing summary then says "occupancy is X%," overstating it.
+  Cosmetic for a demo, but factually wrong.
+  4. Dead-but-accepted inputs: session_id validated but never used (no session
+  store); image_b64 accepted by ChatRequestSchema (up to 1.8 MB) but ignored by
+  /api/chat — a client sending an image to chat silently gets a text-only turn
+  and paid for parsing dead payload.
+
+  Security (adds to my earlier list):
+
+  5. /api/alerts/stream cap is global (100), not per-IP (alerts.ts:5,16) — one
+  client can open 100 long-lived SSE connections and exhaust fan-alert capacity
+  for everyone. The ASR bridge has per-IP caps; the alert stream doesn't.
+  6. /api/chat and /api/vision/sign-reader are anonymous + paid-LLM (20/min,
+  10/min per IP) — abuse vector against quota on the public *.azurewebsites.net
+  endpoint linked in the README. Fine for a hackathon; risky if left live.
+  7. Pino redaction misses GPS (logger.ts:7-15) — redacts image_b64 and auth,
+  but not req.body.context (lat/lng) or location_node_id. Fan GPS can land in
+  info logs.
+  8. DASHSCOPE_API_KEY absent → client built with literal 'missing' (qwen.ts:34)
+  instead of failing fast; every call 401s upstream and surfaces as a
+  generic 500.
+
+  Dead/drift (confirms earlier): GEMINI_MODELS + FREE_TIER constants unused;
+  QWEN_MODEL_EMBED env unused (no embeddings exist); backend/package.json
+  description still says "Express + Gemini agent"; lint --max-warnings=100 lets
+  warning drift accumulate; .nvmrc/Dockerfile Node 20 vs engines >=22.
+
+  Tally so far
+
+  Three of four agents are in. The strongest actionable, non-cosmetic items I'd
+  prioritize fixing:
+  - #1 (agent find_route doesn't honor active advisories) — real demo-breaking
+  inconsistency
+  - The REST rate-limiter IP-keying concern under trust proxy: 1 (still want to
+  verify)
+  - Node version mismatch (.nvmrc + Dockerfile vs engines/CI)
+  - Stale uncommited_codereview.txt + dead assets + Gemini-era constants/docs
+  drift
+
+  The fourth agent (data/stadium assets) is still running. I'll fold its results
+  in when it lands. Want me to start the cleanup PR in the meantime (these are
+  all safe, isolated changes), or hold until the last agent reports?
+
+✻ Churned for 39s
+
+● Agent "Analyze shared, data, stadium assets" finished · 17m 41s
+
+● All four analysis agents are now in. The data/assets agent added several
+  verified findings — notably the gate-label typo in the live graph, the
+  match-id mismatch, and that sections.json/connections.json have no
+  regeneration path. Let me verify the most consequential new ones before
+  finalizing.
+
+● Bash(echo "=== entry_gate labels in the live graph ===" && node -e "const
+      g=require('./data/venue/metlife.graph.json'); const
+      gates=g.nodes.filter(n=>n.type==='entry…)
+  ⎿  === entry_gate labels in the live graph ===
+     count: 9
+     "HCL Tech"
+     … +30 lines (ctrl+o to expand)
+
+● All four agents are in, and I've spot-verified the new data-layer findings
+  against the live graph. Here's the consolidated, final picture.
+
+  ---
+  Concourse (Smart-Stadium) — Final consolidated analysis
+
+  Project in one paragraph
+
+  A context-aware smart-stadium companion (PromptWars Virtual Challenge 4 / FIFA
+  World Cup 2026): a React PWA + Express API where a Qwen LLM concierge is 
+  force-grounded in deterministic tools (label→node resolution, A* indoor
+  routing over a real 3,479-node/8,167-edge MetLife graph, simulated crowd
+  state, optional Google outdoor routes), with a 3D Cesium map, multilingual
+  generative PA (Qwen translate + CosyVoice TTS), realtime ASR captions, SSE fan
+  alerts, and an admin ops console. Deployed: Azure App Service (backend) +
+  Firebase Hosting (frontend). It's a well-built, honestly-scoped hackathon
+  project with strong security/testing/deploy hygiene.
+
+  What's genuinely good
+
+  - Grounded agent design: tools are the only source of venue truth; node IDs
+  never reach the model; loop bounded at 6 hops; injection sentinels + history
+  cleaning; system prompt makes tool-grounding the "first and highest law."
+  - Honest demo boundaries baked into UX and prompts (crowd labelled
+  "simulated," no live-sensor claims).
+  - Solid security baseline: Helmet, CORS allowlist, Zod at every boundary,
+  constant-time admin-token compare, fail-closed admin, redacted logs,
+  server-only secrets, CI grep for credential leakage.
+  - Phone-conscious: lazy routes, deferred 3D, handset GPU tiers, render-loop
+  paused when hidden, cache warmup respects Save-Data/2G, offline route cache.
+  - Real test coverage (37 backend it()s + 2 Playwright e2e) and deploy smoke 
+  tests that actually verify CORS + SSE end-to-end.
+
+  Real bugs / issues (verified against current code)
+
+  Correctness — worth fixing:
+  1. Agent find_route ignores active advisories (tools.ts:380-382) — passes no
+  blockedNode arg, while REST /api/navigation/route does. The concierge can
+  route a fan through a node the 2D map treats as closed. Demo-breaking
+  inconsistency.
+  2. location_node_id mis-resolved as a label (chat.ts:45) — findNodeByLabel on
+  a node ID never matches; location context silently dropped. (Moot while the
+  frontend sends undefined, but the contract is broken.)
+  3. occupancy_pct is mislabeled (admin.ts:212-218) — it's average zone density
+  %, not occupancy; the briefing then states it as "occupancy."
+  4. Dead-but-accepted inputs: session_id validated but unused; image_b64
+  accepted by ChatRequestSchema (≤1.8 MB) but ignored by /api/chat.
+  5. Graph label typos (verified in the live graph): "Metlife VIP Gate"
+  (lowercase L — the prompt says "MetLife VIP Gate"), "Moody's VIP  Gate"
+  (double space). Could surface if the model mirrors spelling.
+  6. Admin.tsx:362 mutates the memoized activeZones array with in-place .sort()
+  (should spread first).
+
+  Security:
+  7. /api/alerts/stream cap is global (100), not per-IP (alerts.ts:5,16) — one
+  client can exhaust fan-alert capacity for everyone (ASR has per-IP caps;
+  alerts don't).
+  8. REST rate-limiter IP keying under trust proxy: 1 (app.ts:26) —
+  express-rate-limit keys on req.ip = client-suppliable leftmost
+  X-Forwarded-For. Per-IP limits can be diluted by header rotation. (The ASR
+  bridge correctly reads the rightmost IP; the REST limiters don't.) Still want
+  to confirm the default key getter before calling this a live vuln.
+  9. /api/chat + /api/vision/sign-reader are anonymous + paid-LLM — quota abuse
+  vector on the public endpoint.
+  10. Pino redaction misses GPS (logger.ts) — req.body.context (lat/lng) and
+  location_node_id not redacted.
+  11. DASHSCOPE_API_KEY absent → client built with 'missing' (qwen.ts:34)
+  instead of failing fast.
+
+  Doc/infra drift (definitely fix):
+  12. Node version mismatch: .nvmrc=20.11.1,
+  backend/Dockerfile=node:20.11-alpine, but engines.node=>=22 <25 and CI/deploy
+  pin 22.x.
+  13. uncommited_codereview.txt is committed (despite its name) — a 27 KB chat
+  transcript containing a personal email, Firebase project ID, and a
+  credit-request draft. All 15 regressions it lists are already fixed in the
+  current tree. Misleading; should delete.
+  14. Stale constants: GEMINI_MODELS + FREE_TIER (shared/constants.ts:61-73)
+  unused; QWEN_MODEL_EMBED env unused (no embeddings exist);
+  backend/package.json description still says "Gemini agent."
+  15. Match-id mismatch (verified): MATCH_IDS constants use metlife-qf1/qf2/sf1,
+  fixtures use metlife-qf/sf/final. Neither is consumed at runtime, but they'll
+  collide if ever wired up.
+  16. .agents/rules/* and .gemini/antigravity/brain/* describe a Gemini + 
+  Firebase-UID + "No WebSockets" architecture that doesn't match the shipped
+  Qwen + admin-passcode + WebSocket(ASR/TTS) code. Will mislead any agent
+  working here.
+  17. Rule 20-accessibility.md claims "axe-core runs in CI" — grep confirms
+  axe-core is referenced nowhere; CI only runs Playwright.
+
+  Dead code / bloat (~26 MB of unused tracked files):
+  18. frontend/src/components/hero/FrameSequence.tsx (277 lines, never imported)
+  + public/scenes/ (300 JPEGs, 11 MB) — dead, and the component fetches a
+  /frames/ path that doesn't exist with frameCount=406 vs 300 actual frames.
+  19. frontend/public/trophy.glb (15 MB) is loaded; trophy.optimized.glb (1 MB)
+  sits unused — swap to the optimized model.
+  20. Dead public assets: environments/potsdamer_platz_1k.hdr (1.5 MB), basis/*
+  (576 KB), data/venue/metlife.graph.tiny.json, frontend/public/floor.geojson
+  (duplicate of stadium/floor.geojson).
+  21. stadium/mapstack.geojson ≡ floorstack.json byte-identical;
+  stadium/space/*.geojson duplicated into frontend/public/stadium/space/ (~6.9
+  MB each set, both tracked).
+  22. Derived data with no regeneration path:
+  frontend/public/stadium/sections.json + connections.json are NOT emitted by
+  scripts/import-mappedin.ts — if the Mappedin export is re-imported, they
+  silently drift.
+
+  Note on the prior review
+
+  uncommited_codereview.txt ran a 3h50m multi-agent review that flagged 15
+  regressions. I checked all 15 against the current committed tree — every one 
+  is already fixed (admin-token trimming, rightmost-IP ASR, admin-limiter
+  coverage, history filtering, 3D schema validation, Safari MediaQueryList
+  fallback, CSP wasm-unsafe-eval, TTS stale-cache fallback, briefing
+  502→fallback, sign-reader abort, demo-restore cache invalidation, etc.). So
+  that file is purely historical clutter now.
+
+  Suggested next steps (priority order)
+
+  1. Fix #1 (agent find_route honoring advisories) — small, high-value,
+  demo-relevant.
+  2. Verify #8 (trace express-rate-limit's default key getter under trust proxy:
+  1) — I can do this now by reading the lib + a quick reasoning pass.
+  3. Cleanup PR: delete uncommited_codereview.txt, remove dead FrameSequence +
+  public/scenes, swap trophy.glb→optimized, drop dead public assets + stale
+  Gemini constants, bump .nvmrc/Dockerfile to Node 22. Reconcile the
+  agent-rules/brain docs with the actual Qwen/passcode/WS stack.
+  4. Trivial fixes: #3 occupancy label, #5 gate-label typos, #6 in-place sort,
+  #10 pino GPS redaction.
+
+  Want me to start with #2 (verify the rate-limiter IP keying now) and then open
+  the cleanup PR? Or jump straight to fixing #1?
+
+✻ Baked for 20m 10s

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { INCIDENT_SEVERITY, VENUE_ID } from '../constants.js';
+import { INCIDENT_SEVERITY, VENUE_ID, SUPPORTED_LOCALES } from '../constants.js';
 
 /**
  * A structured, LLM-generated situational briefing for /admin.
@@ -50,7 +50,7 @@ export type Briefing = z.infer<typeof BriefingSchema>;
 export const BriefingRequestSchema = z.object({
   venue_id: z.literal(VENUE_ID),
   match_id: z.string().optional(),
-  lang: z.string().default('en'),
+  lang: z.enum(SUPPORTED_LOCALES).default('en'),
   force_refresh: z.boolean().default(false),
 });
 export type BriefingRequest = z.infer<typeof BriefingRequestSchema>;

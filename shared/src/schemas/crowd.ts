@@ -35,3 +35,21 @@ export const CrowdHeatmapSchema = z.object({
   generated_at: z.string(),
 });
 export type CrowdHeatmap = z.infer<typeof CrowdHeatmapSchema>;
+
+export const CrowdMapZoneSchema = z.object({
+  zone_id: z.string(),
+  label: z.string(),
+  level: z.number(),
+  kind: z.enum(['gates', 'concourse', 'restrooms', 'food', 'seating']),
+  centroid: z.tuple([z.number(), z.number()]),
+}).merge(CrowdLevelSchema.omit({ venue_id: true, zone_id: true }));
+export type CrowdMapZone = z.infer<typeof CrowdMapZoneSchema>;
+
+export const CrowdHeatmapResponseSchema = z.object({
+  venue_id: z.string(),
+  zones: z.array(CrowdMapZoneSchema),
+  generated_at: z.string(),
+  phase: z.string(),
+  sim_minute: z.number(),
+});
+export type CrowdHeatmapResponse = z.infer<typeof CrowdHeatmapResponseSchema>;

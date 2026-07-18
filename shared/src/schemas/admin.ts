@@ -22,3 +22,13 @@ export const AdminCrowdOverrideRequestSchema = z.object({
   ttl_seconds: z.number().int().positive().max(3600).default(300),
 });
 export type AdminCrowdOverrideRequest = z.infer<typeof AdminCrowdOverrideRequestSchema>;
+
+export const AdminDemoStatusSchema = z.object({
+  active: z.boolean().optional(),
+});
+export type AdminDemoStatus = z.infer<typeof AdminDemoStatusSchema>;
+
+export const AdminSessionSchema = z.object({
+  ok: z.boolean(),
+});
+export type AdminSession = z.infer<typeof AdminSessionSchema>;

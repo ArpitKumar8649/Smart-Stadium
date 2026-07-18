@@ -45,7 +45,7 @@ export function createApp(): Express {
   app.use(
     cors({
       origin: env.allowedOrigins,
-      credentials: true,
+      credentials: false,
     }),
   );
 

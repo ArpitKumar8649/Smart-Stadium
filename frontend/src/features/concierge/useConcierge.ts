@@ -1,7 +1,7 @@
 import { useCallback, useRef, useState } from 'react';
 import type { ChatEvent } from '@concourse/shared';
 
-export type ToolChip = { id: string; name: string; summary?: string; ok?: boolean };
+export type ToolChip = { id: string; name: string; summary?: string; ok?: boolean; data?: Record<string, unknown> };
 
 export type ChatMessage = {
   id: string;
@@ -155,7 +155,7 @@ function applyEvent(ev: ChatEvent, patch: (fn: (m: ChatMessage) => ChatMessage) 
         ...m,
         tools: (m.tools ?? []).map((t) =>
           t.id === ev.id
-            ? { ...t, ok: ev.ok, ...(ev.summary ? { summary: ev.summary } : {}) }
+            ? { ...t, ok: ev.ok, ...(ev.summary ? { summary: ev.summary } : {}), ...('data' in ev && ev.data ? { data: ev.data as Record<string, unknown> } : {}) }
             : t,
         ),
       }));

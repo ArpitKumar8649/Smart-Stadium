@@ -99,7 +99,7 @@ adminRouter.post('/admin/incident', (req, res) => {
     affected_node_id,
     affected_gate_id,
     created_at: new Date().toISOString(),
-    created_by: 'demo_admin',
+    created_by: req.auth?.uid || 'unknown_admin',
   };
 
   alertStore.addIncident(incident);
@@ -316,6 +316,21 @@ Write the human-readable text in this language: ${lang}. Do not invent numbers; 
       return;
     }
 
+    // Semantic Briefing Validation: Ensure AI doesn't hallucinate non-existent zones
+    const validZoneIds = new Set(heatmap.zones.map(z => z.zone_id));
+
+    const validConcerns = generated.data.concerns.filter(c => validZoneIds.has(c.zone_id));
+    if (validConcerns.length !== generated.data.concerns.length) {
+      logger.warn('Filtered out hallucinatory zones from briefing concerns');
+    }
+
+    const validRecommendations = generated.data.recommendations.filter(
+      r => !r.affected_zone_id || validZoneIds.has(r.affected_zone_id)
+    );
+    if (validRecommendations.length !== generated.data.recommendations.length) {
+      logger.warn('Filtered out hallucinatory zones from briefing recommendations');
+    }
+
     const briefing: Briefing = {
       id: `brf_${randomUUID().slice(0, 8)}`,
       venue_id,
@@ -325,8 +340,8 @@ Write the human-readable text in this language: ${lang}. Do not invent numbers; 
       occupancy_pct,
       headline: generated.data.headline,
       summary: generated.data.summary,
-      concerns: generated.data.concerns,
-      recommendations: generated.data.recommendations,
+      concerns: validConcerns,
+      recommendations: validRecommendations,
       top_fan_questions: topQuestions,
       model: 'qwen-plus',
       lang,

@@ -50,6 +50,7 @@ export const ChatEventSchema = z.discriminatedUnion('type', [
     id: z.string(),
     ok: z.boolean(),
     summary: z.string().optional(),
+    data: z.record(z.unknown()).optional(),
   }),
   z.object({
     type: z.literal('done'),

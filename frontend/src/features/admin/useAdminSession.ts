@@ -1,36 +1,45 @@
-import { useState } from 'react';
-
-const API_BASE = import.meta.env.VITE_API_BASE ?? '';
+import { useState, useEffect } from 'react';
+import { onIdTokenChanged, User } from 'firebase/auth';
+import { auth } from '../../lib/firebase';
 
 export function useAdminSession() {
   const [token, setToken] = useState('');
   const [authed, setAuthed] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
   const [authError, setAuthError] = useState<string | null>(null);
-  const [authLoading, setAuthLoading] = useState(false);
+  const [authLoading, setAuthLoading] = useState(true);
 
-  const authenticate = async (candidateToken: string) => {
-    const candidate = candidateToken.trim();
-    if (!candidate) {
-      setAuthError('Enter the operator passcode.');
-      return;
-    }
-
-    setAuthLoading(true);
-    setAuthError(null);
-    try {
-      const response = await fetch(`${API_BASE}/api/admin/session`, {
-        headers: { Authorization: `Bearer ${candidate}` },
-      });
-      if (!response.ok) {
-        setAuthError('Invalid passcode.');
-        return;
+  useEffect(() => {
+    const unsubscribe = onIdTokenChanged(auth, async (currentUser) => {
+      setUser(currentUser);
+      if (currentUser) {
+        try {
+          const idToken = await currentUser.getIdToken();
+          setToken(idToken);
+          setAuthed(true);
+        } catch (error) {
+          setAuthError('Failed to get auth token.');
+          setAuthed(false);
+          setToken('');
+        }
+      } else {
+        setToken('');
+        setAuthed(false);
       }
-      setToken(candidate);
-      setAuthed(true);
-    } catch {
-      setAuthError('Could not reach the admin service.');
-    } finally {
       setAuthLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  const signOut = async () => {
+    try {
+      await auth.signOut();
+      setToken('');
+      setAuthed(false);
+      setUser(null);
+    } catch (error) {
+      console.error('Error signing out', error);
     }
   };
 
@@ -39,10 +48,11 @@ export function useAdminSession() {
   return {
     token,
     authed,
+    user,
     setAuthed,
     authError,
     authLoading,
-    authenticate,
+    signOut,
     clearError,
   };
 }

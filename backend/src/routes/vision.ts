@@ -29,6 +29,24 @@ visionRouter.post('/vision/sign-reader', async (req, res) => {
   }
 
   const { image_b64, lang } = parsed.data;
+
+  // Safe Vision Processing: Verify magic bytes to prevent malformed/malicious file uploads
+  const buffer = Buffer.from(image_b64, 'base64');
+  if (buffer.length < 4) {
+    res.status(400).json({ error: { code: 'invalid_image', message: 'Image too small or invalid base64' } });
+    return;
+  }
+
+  const hex = buffer.subarray(0, 4).toString('hex').toUpperCase();
+  const isJPEG = hex.startsWith('FFD8FF');
+  const isPNG = hex === '89504E47';
+  const isWEBP = hex === '52494646';
+
+  if (!isJPEG && !isPNG && !isWEBP) {
+    res.status(400).json({ error: { code: 'invalid_image_format', message: 'Only JPEG, PNG, and WEBP images are allowed' } });
+    return;
+  }
+
   const controller = new AbortController();
   res.on('close', () => {
     if (!res.writableFinished) controller.abort();

@@ -1,33 +1,56 @@
-import type { RequestHandler } from 'express';
-import { timingSafeEqual } from 'node:crypto';
-import { env } from '../config/env.js';
+import type { Request, Response, NextFunction } from 'express';
+import { adminAuth } from '../services/firebase-admin.js';
 
-function safeTokenMatch(actual: string, expected: string): boolean {
-  const a = Buffer.from(actual);
-  const b = Buffer.from(expected);
-  if (a.length !== b.length) return false;
-  return timingSafeEqual(a, b);
+// Extend Express Request to include auth info
+declare global {
+  namespace Express {
+    interface Request {
+      auth?: { uid: string };
+    }
+  }
 }
 
 /**
- * Protects the local/demo admin console. It intentionally fails closed: no
- * configured secret means no mutation endpoints. Firebase UID verification can
- * replace this middleware later without changing the admin route contracts.
+ * Protects the admin console by verifying Firebase ID tokens and
+ * ensuring the user has the 'admin' custom claim.
  */
-export const requireAdmin: RequestHandler = (req, res, next) => {
+export const requireAdmin = async (req: Request, res: Response, next: NextFunction) => {
   const header = req.header('authorization');
   const token = header?.startsWith('Bearer ') ? header.slice('Bearer '.length) : '';
-  const expected = env.ADMIN_DEMO_TOKEN;
 
-  if (!expected || !token || !safeTokenMatch(token, expected)) {
+  if (!token) {
     res.status(401).json({
       error: {
         code: 'unauthorized',
-        message: 'Admin access required or invalid token.',
+        message: 'Admin access required.',
       },
     });
     return;
   }
 
-  next();
+  try {
+    const decodedToken = await adminAuth.verifyIdToken(token);
+
+    // Check for admin custom claim
+    if (decodedToken.admin !== true) {
+      res.status(403).json({
+        error: {
+            code: 'forbidden',
+            message: 'Forbidden: Admin claim required'
+        }
+      });
+      return;
+    }
+
+    req.auth = { uid: decodedToken.uid };
+    next();
+  } catch (error) {
+    res.status(401).json({
+      error: {
+        code: 'unauthorized',
+        message: 'Invalid token.',
+      },
+    });
+    return;
+  }
 };
