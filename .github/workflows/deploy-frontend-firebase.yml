@@ -28,8 +28,8 @@ jobs:
     # Keep the first repository push safe: configure the Firebase project and
     # public Azure API URL in GitHub before this job can run.
     if: >-
-      vars.FIREBASE_PROJECT_ID != '' &&
-      vars.VITE_API_BASE != ''
+      (vars.FIREBASE_PROJECT_ID != '' || secrets.FIREBASE_PROJECT_ID != '') &&
+      (vars.VITE_API_BASE != '' || secrets.VITE_API_BASE != '')
     runs-on: ubuntu-latest
 
     steps:
@@ -57,9 +57,9 @@ jobs:
           # public values, never server credentials or private API keys.
           VITE_API_BASE: ${{ vars.VITE_API_BASE }}
           VITE_CESIUM_ION_TOKEN: ${{ vars.VITE_CESIUM_ION_TOKEN }}
-          VITE_FIREBASE_API_KEY: ${{ vars.VITE_FIREBASE_API_KEY }}
-          VITE_FIREBASE_AUTH_DOMAIN: ${{ vars.VITE_FIREBASE_AUTH_DOMAIN }}
-          VITE_FIREBASE_PROJECT_ID: ${{ vars.VITE_FIREBASE_PROJECT_ID }}
+          VITE_FIREBASE_API_KEY: ${{ vars.VITE_FIREBASE_API_KEY || secrets.VITE_FIREBASE_API_KEY }}
+          VITE_FIREBASE_AUTH_DOMAIN: ${{ vars.VITE_FIREBASE_AUTH_DOMAIN || secrets.VITE_FIREBASE_AUTH_DOMAIN }}
+          VITE_FIREBASE_PROJECT_ID: ${{ vars.VITE_FIREBASE_PROJECT_ID || secrets.VITE_FIREBASE_PROJECT_ID }}
         run: |
           test -n "$VITE_FIREBASE_API_KEY" || { echo "VITE_FIREBASE_API_KEY is not set"; exit 1; }
           test -n "$VITE_FIREBASE_AUTH_DOMAIN" || { echo "VITE_FIREBASE_AUTH_DOMAIN is not set"; exit 1; }
@@ -70,7 +70,7 @@ jobs:
         uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-          projectId: ${{ vars.FIREBASE_PROJECT_ID }}
+          projectId: ${{ vars.FIREBASE_PROJECT_ID || secrets.FIREBASE_PROJECT_ID }}
           channelId: live
           entryPoint: .
 
