@@ -18,9 +18,9 @@ export function AdminLoginForm({ error, clearError }: AdminLoginFormProps) {
     clearError();
     try {
       await signInWithPopup(auth, googleProvider);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Login failed:", err);
-      setLocalError(err.message || 'Failed to sign in with Google');
+      setLocalError(err instanceof Error ? err.message : 'Failed to sign in with Google');
     } finally {
       setLoading(false);
     }

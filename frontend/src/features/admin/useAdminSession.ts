@@ -17,7 +17,7 @@ export function useAdminSession() {
           const idToken = await currentUser.getIdToken();
           setToken(idToken);
           setAuthed(true);
-        } catch (error) {
+        } catch {
           setAuthError('Failed to get auth token.');
           setAuthed(false);
           setToken('');

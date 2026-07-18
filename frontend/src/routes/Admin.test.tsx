@@ -5,8 +5,17 @@ import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import Admin from './Admin.tsx';
 import { makeBriefing, makeCrowdHeatmapResponse, makeCrowdZone } from '../test/factories.ts';
 
-// Mock the session hook to easily control auth state
-let mockSessionState = {
+let mockSessionState: {
+  token: string;
+  authed: boolean;
+  user: import('firebase/auth').User | null;
+  authError: string | null;
+  authLoading: boolean;
+  setAuthed: ReturnType<typeof vi.fn>;
+  signOut: ReturnType<typeof vi.fn>;
+  clearError: ReturnType<typeof vi.fn>;
+  getFreshToken: ReturnType<typeof vi.fn>;
+} = {
   token: '',
   authed: false,
   user: null,
@@ -43,7 +52,7 @@ describe('Admin route', () => {
     mockSessionState = {
       token: 'fake-jwt-token',
       authed: true,
-      user: { uid: '123' } as any,
+      user: { uid: '123' } as unknown as import('firebase/auth').User,
       authError: null,
       authLoading: false,
       setAuthed: vi.fn((val) => { mockSessionState.authed = val; }),
@@ -175,8 +184,8 @@ describe('Admin route', () => {
     
     // 2. 500 Error
     // We need to re-render to pick up the authed state change
-    const { unmount } = render(<MemoryRouter><Admin /></MemoryRouter>);
-    await user.click(screen.getAllByRole('button', { name: 'Enable guided demo' })[0]);
+    render(<MemoryRouter><Admin /></MemoryRouter>);
+    await user.click(screen.getAllByRole('button', { name: 'Enable guided demo' })[0]!);
     expect(await screen.findByRole('status')).toHaveTextContent('Could not update the guided demo state.');
 
     // 3. Network error
@@ -196,7 +205,7 @@ describe('Admin route - edge cases', () => {
     mockSessionState = {
       token: 'fake-jwt-token',
       authed: true,
-      user: { uid: '123' } as any,
+      user: { uid: '123' } as unknown as import('firebase/auth').User,
       authError: null,
       authLoading: false,
       setAuthed: vi.fn((val) => { mockSessionState.authed = val; }),

@@ -3,6 +3,7 @@ import { adminAuth } from '../services/firebase-admin.js';
 
 // Extend Express Request to include auth info
 declare global {
+  // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace Express {
     interface Request {
       auth?: { uid: string };
@@ -44,7 +45,7 @@ export const requireAdmin = async (req: Request, res: Response, next: NextFuncti
 
     req.auth = { uid: decodedToken.uid };
     next();
-  } catch (error) {
+  } catch {
     res.status(401).json({
       error: {
         code: 'unauthorized',
