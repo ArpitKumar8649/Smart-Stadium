@@ -57,7 +57,13 @@ jobs:
           # public values, never server credentials or private API keys.
           VITE_API_BASE: ${{ vars.VITE_API_BASE }}
           VITE_CESIUM_ION_TOKEN: ${{ vars.VITE_CESIUM_ION_TOKEN }}
+          VITE_FIREBASE_API_KEY: ${{ vars.VITE_FIREBASE_API_KEY }}
+          VITE_FIREBASE_AUTH_DOMAIN: ${{ vars.VITE_FIREBASE_AUTH_DOMAIN }}
+          VITE_FIREBASE_PROJECT_ID: ${{ vars.VITE_FIREBASE_PROJECT_ID }}
         run: |
+          test -n "$VITE_FIREBASE_API_KEY" || { echo "VITE_FIREBASE_API_KEY is not set"; exit 1; }
+          test -n "$VITE_FIREBASE_AUTH_DOMAIN" || { echo "VITE_FIREBASE_AUTH_DOMAIN is not set"; exit 1; }
+          test -n "$VITE_FIREBASE_PROJECT_ID" || { echo "VITE_FIREBASE_PROJECT_ID is not set"; exit 1; }
           npm run build --workspace=frontend
 
       - name: Deploy to Firebase Hosting live channel
@@ -84,7 +90,6 @@ jobs:
           health_headers=$(curl --fail --silent --show-error --dump-header - --output /dev/null \
             --header "Origin: $FRONTEND_ORIGIN" "$API_BASE/api/health" | tr -d '\r')
           printf '%s\n' "$health_headers" | grep --fixed-strings --ignore-case "access-control-allow-origin: $FRONTEND_ORIGIN" >/dev/null
-          printf '%s\n' "$health_headers" | grep --fixed-strings --ignore-case 'access-control-allow-credentials: true' >/dev/null
           sse_headers=$(timeout 25 curl --silent --show-error --no-buffer --dump-header - --output /dev/null \
             --header 'Accept: text/event-stream' \
             --header 'Cache-Control: no-cache' \
