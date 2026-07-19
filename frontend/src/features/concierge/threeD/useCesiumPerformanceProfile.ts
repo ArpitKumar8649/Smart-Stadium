@@ -83,11 +83,13 @@ export function useCesiumPerformanceProfile(): CesiumPerformanceProfile {
 
     // eslint-disable-next-line @typescript-eslint/unbound-method
     if (typeof legacyPointer.addListener === 'function') {
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
       // @ts-ignore Typescript considers this deprecated, but it's needed for old Safari.
       legacyPointer.addListener(update);
       return () => {
         window.removeEventListener('resize', update);
         window.removeEventListener('orientationchange', update);
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
         // @ts-ignore Same reason
         legacyPointer.removeListener(update);
       };

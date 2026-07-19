@@ -20,7 +20,6 @@ import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import {
-  TRANSIT_MODES,
   type TransitOption,
   type TransitResponse,
   type TransitPriority,
@@ -32,7 +31,7 @@ import { LlmCapacityError } from '../llm/rate-limit.js';
 import { planGroundRoutes, METLIFE_LATLNG, type OutdoorModeCode } from '../transit/routes.js';
 import { estimateCarbonForOptions, type CarbonEstimateInput, type CarbonAttachedOption } from '../transit/carbon.js';
 import { TRANSIT_TOOL_DEFINITIONS, dispatchTransitTool, type TransitTurnState } from './transit_tools/index.js';
-import { recommendMode, MODE_LABELS } from './transit_tools/scorer.js';
+import { recommendMode } from './transit_tools/scorer.js';
 
 const TRANSIT_TEMPERATURE = 0.2;
 const MAX_HOPS = 4;

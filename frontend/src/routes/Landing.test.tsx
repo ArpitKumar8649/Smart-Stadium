@@ -44,7 +44,7 @@ describe('Landing route', () => {
 
   it('loads TrophyScene without IntersectionObserver gracefully', () => {
     const originalObserver = window.IntersectionObserver;
-    delete (window as any).IntersectionObserver;
+    delete (window as unknown as { IntersectionObserver: unknown }).IntersectionObserver;
 
     render(<MemoryRouter><Landing /></MemoryRouter>);
     expect(screen.getByText('Trophy scene')).toBeInTheDocument();

@@ -42,9 +42,9 @@ describe('RouteSummaryPanel', () => {
         warnings: [],
         path: [],
         steps: [],
-        from: { label: 'Start' },
-        to: { label: 'End' }
-      } as any}
+        from: { label: 'Start' } as never,
+        to: { label: 'End' } as never
+      } as never}
     />);
 
     expect(screen.getByText('45 sec')).toBeInTheDocument();
@@ -80,7 +80,7 @@ describe('BusiestZonesPanel', () => {
       { zone_id: 'z1', level: 1, label: 'Zone 1', density: 0.9, predictions: [] }
     ];
 
-    render(<BusiestZonesPanel activeZones={zones as any} forecast={0} setSelectedZone={onFocus} />);
+    render(<BusiestZonesPanel activeZones={zones as never} forecast={0} setSelectedZone={onFocus} />);
     await user.click(screen.getByRole('button'));
     expect(onFocus).toHaveBeenCalledWith(zones[0]);
   });
@@ -107,7 +107,7 @@ describe('useCrowdHeatmap', () => {
         venue: 'metlife',
         zones: []
       })
-    } as any);
+    } as never);
 
     const { result, unmount } = renderHook(() => useCrowdHeatmap());
 
