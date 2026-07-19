@@ -21,10 +21,7 @@ export function Model(props: JSX.IntrinsicElements['group']) {
 
   return (
     <group {...props}>
-      <mesh>
-        <bufferGeometry attach="geometry" {...(nodes.mesh_0.geometry as never)} />
-        <meshStandardMaterial attach="material" {...(nodes.mesh_0.material as never)} />
-      </mesh>
+      <mesh geometry={nodes.mesh_0.geometry as never} material={nodes.mesh_0.material as never} />
     </group>
   )
 }

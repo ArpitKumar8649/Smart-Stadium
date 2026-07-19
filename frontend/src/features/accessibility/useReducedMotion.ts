@@ -26,10 +26,10 @@ export function useReducedMotion(): boolean {
     // Safari before version 14 exposes the legacy MediaQueryList listener API.
     // eslint-disable-next-line @typescript-eslint/unbound-method
     if (typeof legacyMedia.addListener === 'function') {
-      // @ts-expect-error Typescript considers this deprecated, but it's needed for old Safari.
+      // @ts-ignore Typescript considers this deprecated, but it's needed for old Safari.
       legacyMedia.addListener(sync);
       return () => {
-        // @ts-expect-error Same reason
+        // @ts-ignore Same reason
         legacyMedia.removeListener(sync);
       };
     }

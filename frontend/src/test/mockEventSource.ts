@@ -1,6 +1,6 @@
 export class MockEventSource {
   static readonly instances: MockEventSource[] = [];
-  static reset() { MockEventSource.instances = []; }
+  static reset() { MockEventSource.instances.length = 0; }
 
   onopen: ((event: Event) => unknown) | null = null;
   onmessage: ((event: MessageEvent) => unknown) | null = null;
