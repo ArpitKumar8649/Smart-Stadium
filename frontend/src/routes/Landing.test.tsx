@@ -29,7 +29,7 @@ describe('Landing route', () => {
     expect(screen.getByRole('link', { name: /talk to concourse/i })).toHaveAttribute('href', '/concierge');
     expect(screen.getByRole('link', { name: /view tactical map/i })).toHaveAttribute('href', '/navigate');
 
-    await user.click(screen.getByRole('button', { name: 'Staff' }));
+    await user.click(screen.getByRole('button', { name: 'Ops Console' }));
     expect(navigate).toHaveBeenCalledWith('/admin');
 
     unmount();

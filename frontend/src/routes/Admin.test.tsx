@@ -94,7 +94,7 @@ describe('Admin route', () => {
   it('shows login form when not authenticated', async () => {
     mockSessionState.authed = false;
     render(<MemoryRouter><Admin /></MemoryRouter>);
-    expect(await screen.findByText('Operations Command Center')).toBeInTheDocument();
+    expect(await screen.findByText('Tournament Operations Console')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /sign in with google/i })).toBeInTheDocument();
   });
 
@@ -104,7 +104,7 @@ describe('Admin route', () => {
 
     render(<MemoryRouter><Admin /></MemoryRouter>);
 
-    expect(await screen.findByText('OPS COMMAND')).toBeInTheDocument();
+    expect(await screen.findByText('TOURNAMENT OPS')).toBeInTheDocument();
     expect(await screen.findByText('Halftime crowd pressure rising')).toBeInTheDocument();
     expect(screen.getByText('Admin tactical map')).toBeInTheDocument();
 
@@ -170,7 +170,7 @@ describe('Admin route', () => {
     });
 
     render(<MemoryRouter><Admin /></MemoryRouter>);
-    expect(await screen.findByText('OPS COMMAND')).toBeInTheDocument();
+    expect(await screen.findByText('TOURNAMENT OPS')).toBeInTheDocument();
 
     // 1. 401 Error
     await user.click(screen.getByRole('button', { name: 'Enable guided demo' }));
@@ -248,7 +248,7 @@ describe('Admin route - edge cases', () => {
     setupFetchMock();
 
     render(<MemoryRouter><Admin /></MemoryRouter>);
-    expect(await screen.findByText('OPS COMMAND')).toBeInTheDocument();
+    expect(await screen.findByText('TOURNAMENT OPS')).toBeInTheDocument();
 
     // Select the zone
     await user.selectOptions(screen.getByRole('combobox', { name: 'Crowd scenario zone' }), 'food-1');
@@ -281,8 +281,8 @@ describe('Admin route - edge cases', () => {
 
     render(<MemoryRouter><Admin /></MemoryRouter>);
 
-    // On mount, demo/status throws error, which is caught silently. We should still see OPS COMMAND.
-    expect(await screen.findByText('OPS COMMAND')).toBeInTheDocument();
+    // On mount, demo/status throws error, which is caught silently. We should still see TOURNAMENT OPS.
+    expect(await screen.findByText('TOURNAMENT OPS')).toBeInTheDocument();
 
     // Trigger visibility change to force refreshDemoStatus
     await waitFor(() => {

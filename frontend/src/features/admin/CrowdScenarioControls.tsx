@@ -17,9 +17,11 @@ export function CrowdScenarioControls({
 }: CrowdScenarioControlsProps) {
   return (
     <section className="mt-auto border-t border-surface-800 pt-6">
-      <h2 className="mb-3 font-display text-sm font-semibold uppercase tracking-wider text-accent">Demo scenarios</h2>
+      <h2 className="mb-1 font-display text-sm font-semibold uppercase tracking-wider text-accent">Real-time Decision Support</h2>
+      <p className="mb-3 text-[10px] uppercase tracking-wider text-surface-500">Broadcast an advisory · connected fans re-plan automatically</p>
       <p className="mb-3 text-xs text-surface-400">
-        Simulated operator scenarios are broadcast venue-wide to connected fan views. The route advisory refreshes the default fan route automatically.
+        Operator advisories reach every connected fan view over SSE. The route advisory
+        excludes the affected graph node and refreshes the fan&apos;s active route automatically.
       </p>
 
       <button

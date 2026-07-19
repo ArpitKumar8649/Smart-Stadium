@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, Suspense, type RefObject } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { ContactShadows } from '@react-three/drei';
+import { ContactShadows, Environment, Lightformer } from '@react-three/drei';
 import { useReducedMotion } from '../../features/accessibility/useReducedMotion.ts';
 import { Model } from './TrophyModel.tsx';
 
@@ -189,12 +189,26 @@ export default function TrophyScene() {
           gl={{ antialias: !handset, alpha: true }}
           style={{ background: 'transparent' }}
         >
-          <ambientLight intensity={0.6} />
-          <directionalLight position={[5, 8, 5]} intensity={1.2} castShadow />
-          <directionalLight position={[-3, 4, -2]} intensity={0.4} />
-          <pointLight position={[0, 3, 0]} intensity={0.8} color="#FFC300" />
+          {/* Higher ambient floor so unlit facets never crush to black. */}
+          <ambientLight intensity={1.4} />
+          {/* Warm hemisphere light gives gold its glow from top, warms shadow. */}
+          <hemisphereLight args={['#FFE9A8', '#3A2A0A', 1.1]} />
+          <directionalLight position={[5, 8, 5]} intensity={2.4} castShadow />
+          <directionalLight position={[-4, 3, -2]} intensity={1.2} color="#FFD37A" />
+          <pointLight position={[0, 3, 2]} intensity={1.4} color="#FFC300" />
+          <pointLight position={[-2, 1, 3]} intensity={0.6} color="#FF8A2B" />
 
           <Suspense fallback={null}>
+            {/* Environment map is what makes metallic PBR materials glow.
+                Without it, metals in Three.js render nearly black. Lightformer
+                rects act as controllable "studio softboxes" reflected in the
+                gold surface — the difference between "dark blob" and "trophy". */}
+            <Environment resolution={handset ? 128 : 256} frames={1}>
+              <Lightformer intensity={5} position={[0, 5, 3]} scale={[8, 3, 1]} color="#FFF3C4" />
+              <Lightformer intensity={3} position={[-4, 2, 2]} scale={[4, 6, 1]} color="#FFD37A" />
+              <Lightformer intensity={2.5} position={[4, 2, 2]} scale={[4, 6, 1]} color="#FFB347" />
+              <Lightformer intensity={1.5} position={[0, -3, 2]} scale={[6, 2, 1]} color="#663311" />
+            </Environment>
             <TrophyModel reduceMotion={reduceMotion} />
             <ContactShadows
               position={[0, 0, 0]}

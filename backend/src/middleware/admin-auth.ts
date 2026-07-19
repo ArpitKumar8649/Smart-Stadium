@@ -3,6 +3,7 @@ import { adminAuth } from '../services/firebase-admin.js';
 
 // Extend Express Request to include auth info
 declare global {
+  
   // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace Express {
     interface Request {
@@ -12,8 +13,8 @@ declare global {
 }
 
 /**
- * Protects the admin console by verifying Firebase ID tokens and
- * ensuring the user has the 'admin' custom claim.
+ * Protects the Tournament Operations Console API by verifying Firebase ID
+ * tokens and ensuring the user has the 'admin' custom claim.
  */
 export const requireAdmin = async (req: Request, res: Response, next: NextFunction) => {
   const header = req.header('authorization');

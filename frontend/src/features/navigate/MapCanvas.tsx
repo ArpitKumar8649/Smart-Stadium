@@ -1,3 +1,4 @@
+import { logger } from "../../lib/telemetry.ts";
 import { useEffect, useMemo, useState } from 'react';
 import { geoMercator, geoPath } from 'd3-geo';
 import type { Feature, FeatureCollection, Geometry } from 'geojson';
@@ -88,7 +89,7 @@ export function MapCanvas({
       })
       .catch((error: unknown) => {
         if ((error as Error).name === 'AbortError') return;
-        console.error('Failed to load map geometry', error);
+        logger.error('Failed to load map geometry', error);
         setLoadError('The indoor map could not load. You can retry or use the route instructions below.');
       });
     return () => controller.abort();

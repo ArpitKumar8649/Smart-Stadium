@@ -20,7 +20,7 @@ One companion that understands a fan’s language, body, route preference, and w
 
 ♿ **Accessibility, first-class not a checkbox.** Large text, reduced motion, live captions, a camera sign-reader workflow for fans who can’t read the venue’s signs, step-free and sensory-safe routing — all wired into the same pathfinding engine everyone uses.
 
-⚡ **Real-time operator-to-fan loop.** A protected demo-operator console injects a route advisory or crowd override; the fan’s phone gets it via Server-Sent Events, excludes the affected node, and refreshes the route automatically. No polling, no page reloads.
+⚡ **Real-time decision support, operator-to-fan.** The Tournament Operations Console publishes a route advisory or crowd override; the fan’s phone receives it via Server-Sent Events, excludes the affected graph node, and refreshes the route automatically. No polling, no page reloads.
 
 📱 **Built for the phone on stadium Wi-Fi.** Route-level lazy loading, deferred 3D, cached map assets, mobile GPU quality tiers that scale render resolution down on low-power handsets. A React PWA on Firebase Hosting, talking to an Express API on Azure.
 

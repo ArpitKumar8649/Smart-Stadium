@@ -6,13 +6,42 @@ can be read or a command that can be run.
 
 ## Challenge fit
 
-**Vertical:** Smart Stadiums & Tournament Operations
+**Vertical:** Smart Stadiums & Tournament Operations (PromptWars Challenge 4).
+
+**Problem statement recap:** *"Build a GenAI-enabled solution that enhances
+stadium operations and the overall tournament experience for fans, organizers,
+volunteers, or venue staff. The solution must leverage Generative AI to improve
+navigation, crowd management, accessibility, transportation, sustainability,
+multilingual assistance, operational intelligence, or real-time decision
+support during the FIFA World Cup 2026."*
 
 Concourse addresses a root matchday problem: a fan needs a decision, not a
 static venue page. It combines language, location, accessibility needs, route
 preferences, and currently simulated venue conditions into a useful next step.
-The same running system gives an operator a safe way to demonstrate how an
-incident becomes a fan-facing alert.
+The same running system gives venue staff and tournament organizers a safe way
+to demonstrate how an incident becomes a fan-facing alert, along with a
+structured AI operational briefing on demand.
+
+### Coverage of every Challenge 4 area
+
+| Area | Where in the repo |
+| --- | --- |
+| **Navigation** | `backend/src/services/graph/astar.ts` (A* with 4 modes over 3,479-node graph). |
+| **Crowd management** | `backend/src/services/crowd/simulator.ts` + low-crowd routing weights. |
+| **Accessibility** | Step-free / sensory-safe routing weights; frontend large-text, reduced-motion, live captions, sign reader. |
+| **Transportation** | Dedicated **Transit Agent** — `backend/src/services/agent/transit.ts`. Its own system prompt (`data/prompts/transit.system.md`), its own bounded tool set (`plan_ground_routes`, `estimate_carbon_footprint`, `recommend_best_mode`), and its own deterministic scorer. Invoked by the concierge via a `transit_handoff` tool (multi-agent orchestration). Plans all 5 ground modes via Google Routes v2. |
+| **Sustainability** | Per-mode per-passenger CO₂ estimate on every option, sourced from a bundled DEFRA 2023 emissions-factor table (`backend/src/services/transit/carbon.ts`). Every result carries a `carbon_source` field so the UI can label the number honestly as an estimate, not a measurement. The Transit Agent's balanced scorer picks the Pareto-optimal mode across time and carbon; UI card shows CO₂ saved vs. driving. |
+| **Multilingual assistance** | 10-language concierge, streamed Qwen answers. |
+| **Operational intelligence** | `backend/src/routes/admin.ts` produces a structured AI briefing (headline, concerns, recommendations) from live crowd and incident state. |
+| **Real-time decision support** | `backend/src/routes/alerts.ts` (SSE) + `backend/src/routes/navigation.ts` (advisory-aware route exclusion). |
+
+### Coverage of Challenge 4 personas
+
+| Persona | Surface |
+| --- | --- |
+| **Fans** | Public PWA — concierge, navigation, alerts, accessibility, transportation. |
+| **Venue staff** | Tournament Operations Console (`/admin`) — crowd heatmap, incident/override injection, on-demand AI briefing. |
+| **Tournament organizers** | Consume the same operations briefings and SSE stream as coordination artifacts. |
 
 ## Rubric map
 
@@ -23,14 +52,17 @@ incident becomes a fan-facing alert.
 | **Efficiency** | Cached core map/route assets in `frontend/src/lib/stadiumCache.ts`; route-level lazy loading in `frontend/src/app/App.tsx`; 3D view/tile initialization is deferred (the current Cesium runtime remains a global build dependency); trophy renders only while visible, pauses off-screen, and applies a handset quality tier; hidden tabs pause map/admin polling. |
 | **Testing** | Vitest tests cover A* modes, crowd simulation, grounded tools, closure-aware route exclusions, and public route contracts. `backend/src/app.test.ts` verifies health, valid/invalid route contracts, fail-closed admin access, anonymous PA/TTS denial, and a simulated operational advisory detour without external AI services. |
 | **Accessibility** | Step-free/sensory preferences feed routing; mobile map disclosure; keyboard/screen-reader landmarks and skip link; visible focus styles; large text/reduced-motion settings; accessible map zones; caption/sign-reader error states and text route instructions. |
-| **Problem Statement Alignment** | The Qwen-backed concierge is bounded and designed to ground venue facts in tools; the route engine uses a bundled venue graph; crowd conditions are visibly labelled as simulation; protected operations controls demonstrate real-time alert flow to connected navigation views. |
+| **Problem Statement Alignment** | The Qwen-backed concierge is bounded and designed to ground venue facts in tools; the route engine uses a bundled venue graph; crowd conditions are visibly labelled as simulation; the Tournament Operations Console demonstrates a real-time incident-to-fan-advisory flow with an on-demand structured AI briefing; multi-mode outdoor travel routing (Google Routes) covers the *transportation* area; the Transit Agent milestone adds carbon-aware *sustainability* scoring on top of it; ten-language concierge covers *multilingual assistance*. See the **Coverage of every Challenge 4 area** and **personas** tables above. |
 
 ## Smart, dynamic assistant evidence
 
 1. `backend/src/services/agent/concierge.ts` streams a Qwen-backed turn and
    caps tool hops, preventing an unbounded agent loop.
 2. `backend/src/services/agent/tools.ts` resolves facilities, routes, crowd
-   data, venue facts, and optional outdoor travel from deterministic services.
+   data, and venue facts from deterministic services; when a fan asks about
+   getting to the stadium, the concierge invokes `transit_handoff` and
+   delegates to a specialist second agent (`backend/src/services/agent/transit.ts`)
+   with its own prompt, bounded tools, and Pareto-aware time/carbon scorer.
 3. `backend/src/services/graph/astar.ts` changes path weights for fastest,
    step-free, sensory-safe, and low-crowd contexts.
 4. `backend/src/services/crowd/simulator.ts` produces labelled match-phase
@@ -61,12 +93,16 @@ and tests the backend before deployment.
 
 ## Honest demo boundaries
 
-- Crowd data is simulated for the hackathon and is labelled in the UI.
+- Crowd data is simulated for the hackathon and labelled in the UI. The
+  crowd store carries a `source` field (`sim` / `injected` / `sensor`), so a
+  real venue-telemetry adapter is a one-file swap.
 - The venue graph is bundled demo data and should be validated by a venue
   operator before real deployment.
-- Outdoor route results require a server-configured Google Routes API key.
-- The admin console is demo-operator functionality, protected by a backend
-  secret and not intended as a full multi-user identity system.
+- Outdoor transportation routing uses a server-configured Google Routes API
+  key; the key is already provisioned for the hosted demo.
+- The Tournament Operations Console (`/admin`) uses a demo-tier auth posture:
+  server-only passcode with fail-closed 401s, rate limits, and constant-time
+  token comparison. Production would layer a full multi-user identity system.
 - The fan demo is deployed at https://concourse-stadium.web.app. Verify the
   browser-to-Azure CORS configuration before a live judging session.
 

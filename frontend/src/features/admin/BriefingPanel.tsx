@@ -11,7 +11,10 @@ export function BriefingPanel({ briefing, loading, error, onRefresh }: BriefingP
   return (
     <section className="mb-6">
       <div className="mb-3 flex items-center justify-between">
-        <h2 className="font-display text-sm font-semibold uppercase tracking-wider text-surface-300">Live AI Briefing</h2>
+        <div>
+          <h2 className="font-display text-sm font-semibold uppercase tracking-wider text-surface-300">Operational Intelligence Briefing</h2>
+          <p className="text-[10px] uppercase tracking-wider text-surface-500">AI synthesis · headline · concerns · recommendations</p>
+        </div>
         <button onClick={() => onRefresh(true)} disabled={loading} className="text-xs text-primary hover:underline disabled:opacity-50">
           {loading ? 'Syncing...' : 'Refresh'}
         </button>

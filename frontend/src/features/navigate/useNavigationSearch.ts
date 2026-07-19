@@ -91,6 +91,7 @@ export function useNavigationSearch({
 
   useEffect(() => {
     void planRoute();
+    // reason: debounced callback needs stable reference but captures live state
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

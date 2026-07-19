@@ -1,3 +1,4 @@
+import { logger } from "../../lib/telemetry.ts";
 import { useState, useEffect } from 'react';
 import { onIdTokenChanged, User } from 'firebase/auth';
 import { auth } from '../../lib/firebase';
@@ -39,7 +40,7 @@ export function useAdminSession() {
       setAuthed(false);
       setUser(null);
     } catch (error) {
-      console.error('Error signing out', error);
+      logger.error('Error signing out', error);
     }
   };
 

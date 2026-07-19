@@ -1,3 +1,4 @@
+import { logger } from "../../lib/telemetry.ts";
 import React, { useEffect, useState } from 'react';
 import { MapContainer, TileLayer, Marker, Polyline, useMap } from 'react-leaflet';
 import polyline from '@mapbox/polyline';
@@ -171,7 +172,7 @@ export const OutdoorMap: React.FC<OutdoorMapProps> = ({ userLocation, encodedPol
         }
       }
     } catch (e) {
-      console.error("Failed to decode polyline", e);
+      logger.error("Failed to decode polyline", e);
     }
   }
 

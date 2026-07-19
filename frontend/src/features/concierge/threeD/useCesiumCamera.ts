@@ -36,6 +36,7 @@ export function useCesiumCamera(
       if (scene.skyAtmosphere) scene.skyAtmosphere.show = true;
     }
     scene.requestRender();
+    // reason: flyTo and staging only run when mode/section change, ignoring viewer ref updates
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode]);
 
@@ -55,6 +56,7 @@ export function useCesiumCamera(
       duration: 1.8,
     });
     viewer.scene.requestRender();
+    // reason: flyTo and staging only run when mode/section change, ignoring viewer ref updates
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode, activeSectionObj]);
 }

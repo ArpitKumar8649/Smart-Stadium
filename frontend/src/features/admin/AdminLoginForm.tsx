@@ -1,3 +1,4 @@
+import { logger } from "../../lib/telemetry.ts";
 import { useState } from 'react';
 import { Wordmark } from '../../components/brand/Logo.tsx';
 import { signInWithPopup } from 'firebase/auth';
@@ -19,7 +20,7 @@ export function AdminLoginForm({ error, clearError }: AdminLoginFormProps) {
     try {
       await signInWithPopup(auth, googleProvider);
     } catch (err: unknown) {
-      console.error("Login failed:", err);
+      logger.error("Login failed:", err);
       setLocalError(err instanceof Error ? err.message : 'Failed to sign in with Google');
     } finally {
       setLoading(false);
@@ -32,7 +33,8 @@ export function AdminLoginForm({ error, clearError }: AdminLoginFormProps) {
     <main id="main-content" tabIndex={-1} className="flex min-h-screen items-center justify-center px-4">
       <div className="w-full max-w-sm space-y-4 rounded-2xl border border-surface-800 bg-surface-900 p-6 shadow-xl text-center">
         <Wordmark className="justify-center" />
-        <p className="text-sm text-surface-400">Operations Command Center</p>
+        <p className="text-sm text-surface-400">Tournament Operations Console</p>
+        <p className="text-xs text-surface-500">Venue staff &amp; organizers · FIFA World Cup 2026</p>
 
         <div className="pt-4">
           <button

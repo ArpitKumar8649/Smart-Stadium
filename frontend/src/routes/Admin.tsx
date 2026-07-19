@@ -111,13 +111,13 @@ export default function Admin() {
       <header className="flex h-14 shrink-0 items-center justify-between border-b border-surface-800 bg-surface-900 px-6">
         <div className="flex items-center gap-4">
           <Wordmark />
-          <span className="rounded bg-surface-800 px-2 py-0.5 font-mono text-xs text-surface-300">OPS COMMAND</span>
+          <span className="rounded bg-surface-800 px-2 py-0.5 font-mono text-xs text-surface-300" aria-label="Tournament Operations Console">TOURNAMENT OPS</span>
         </div>
         <div className="flex items-center gap-4 text-xs font-mono">
           <span className="text-surface-400">Phase: <strong className="text-surface-100">{crowd?.phase || '...'}</strong></span>
           <span className="text-surface-400">Min: <strong className="text-surface-100">{crowd?.sim_minute || '...'}</strong></span>
           <button onClick={signOut} className="text-primary hover:underline bg-transparent border-none cursor-pointer">Sign Out</button>
-          <Link to="/" className="text-primary hover:underline">Exit to Fan App</Link>
+          <Link to="/" className="text-primary hover:underline">Exit to fan view</Link>
         </div>
       </header>
 

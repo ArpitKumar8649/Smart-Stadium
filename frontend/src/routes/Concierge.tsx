@@ -6,6 +6,7 @@ import { MessageBubble } from '../features/concierge/MessageBubble.tsx';
 import { SignReader } from '../features/accessibility/SignReader.tsx';
 import { LiveCaptionPanel } from '../features/accessibility/LiveCaptionPanel.tsx';
 import { ConcourseMap } from '../features/concierge/ConcourseMap.tsx';
+import { TransitPlanCard } from '../features/concierge/TransitPlanCard.tsx';
 import { parseSectionRef } from '../features/concierge/floorData.ts';
 import { useA11y } from '../features/accessibility/useA11y.ts';
 import { A11yTogglePanel } from '../features/accessibility/A11yTogglePanel.tsx';
@@ -56,20 +57,21 @@ export default function Concierge() {
   const [shareLocationForRequest, setShareLocationForRequest] = useState(false);
   const [mobileMapOpen, setMobileMapOpen] = useState(false);
 
-  // See if there's an outdoor route in the recent messages
-  const lastOutdoorRouteResult = useMemo(() => {
-    // Find the last toolResult for find_outdoor_route that was successful
+  // Most recent Transit Agent plan (via transit_handoff tool). Drives both the
+  // map polyline and the inline transit card under the assistant's reply.
+  const lastTransitPlan = useMemo(() => {
     for (let i = messages.length - 1; i >= 0; i--) {
       const msg = messages[i];
       if (msg?.tools) {
-        const routeTool = msg.tools.find(t => t.name === 'find_outdoor_route' && t.ok);
-        if (routeTool?.data?.kind === 'outdoor_route' && typeof routeTool.data.encodedPolyline === 'string') {
-          return routeTool.data.encodedPolyline;
-        }
+        const t = msg.tools.find(
+          (tool) => tool.name === 'transit_handoff' && tool.ok && (tool.data as { kind?: string } | undefined)?.kind === 'transit_plan',
+        );
+        if (t?.data) return t.data as unknown as import('@concourse/shared').TransitResponse;
       }
     }
     return null;
   }, [messages]);
+  const lastOutdoorRouteResult = lastTransitPlan?.primary_polyline ?? null;
 
   // The most recent seating section named anywhere in the conversation (user or
   // assistant). Drives the 3D highlight — "take me to Section 128" lights it up.
@@ -243,6 +245,7 @@ export default function Concierge() {
           ) : (
             messages.map((m) => <MessageBubble key={m.id} msg={m} />)
           )}
+          {lastTransitPlan && !empty && <TransitPlanCard plan={lastTransitPlan} />}
         </div>
 
         <div className="sr-only" role="status" aria-live="polite">{announcement}</div>

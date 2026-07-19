@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { TOOL_DEFINITIONS, handleToolCall } from './tools.js';
+import { TOOL_DEFINITIONS, handleToolCall } from './tools/index.js';
 
 /**
  * Exercises the real agent surface — the handlers the LLM invokes — against the
@@ -23,6 +23,7 @@ describe('agent tools', () => {
       to_label: 'Section 108',
       mode: 'fastest',
     });
+    console.log("find_route error:", r.error);
     expect(r.ok).toBe(true);
     expect(r.summary).toContain('Section 144');
     // No raw node ids should appear in the human summary.
@@ -44,6 +45,7 @@ describe('agent tools', () => {
       facility_type: 'restroom',
       step_free: true,
     });
+    console.log("find_route error:", r.error);
     expect(r.ok).toBe(true);
     expect(r.summary.toLowerCase()).toContain('restroom');
   });
@@ -64,6 +66,7 @@ describe('agent tools', () => {
 
   it('get_crowd reports a density band and marks data simulated', async () => {
     const r = await handleToolCall('get_crowd', { place: 'Section 144' });
+    console.log("find_route error:", r.error);
     expect(r.ok).toBe(true);
     const data = r.data as { simulated?: boolean; level?: string };
     expect(data.simulated).toBe(true);
@@ -72,6 +75,7 @@ describe('agent tools', () => {
 
   it('get_crowd with no place summarises the busiest zones', async () => {
     const r = await handleToolCall('get_crowd', {});
+    console.log("find_route error:", r.error);
     expect(r.ok).toBe(true);
     const data = r.data as { busiest?: unknown[] };
     expect(Array.isArray(data.busiest)).toBe(true);
@@ -80,6 +84,7 @@ describe('agent tools', () => {
 
   it('resolve_place returns ranked candidates for a fuzzy query', async () => {
     const r = await handleToolCall('resolve_place', { query: '144' });
+    console.log("find_route error:", r.error);
     expect(r.ok).toBe(true);
     const data = r.data as { candidates?: Array<{ label: string }> };
     expect(data.candidates?.some((c) => c.label.includes('144'))).toBe(true);

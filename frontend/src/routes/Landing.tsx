@@ -55,33 +55,38 @@ const ShieldIcon = (props: React.SVGProps<SVGSVGElement>) => (
 
 const FEATURES = [
   {
-    title: 'Multilingual concierge',
-    body: 'Ask matchday questions and choose from ten response-language preferences.',
+    title: 'Multilingual assistance',
+    body: 'Ten selectable response-language preferences with a Qwen-backed streamed concierge.',
     icon: '💬',
   },
   {
-    title: 'Indoor navigation',
-    body: 'Turn-by-turn from your gate to your seat, using real MetLife Stadium geometry.',
+    title: 'Navigation',
+    body: 'A* routes over a 3,479-node MetLife venue graph with fastest, step-free, sensory-safe, and low-crowd modes.',
     icon: '🗺️',
   },
   {
-    title: 'Live crowd awareness',
-    body: 'See simulated queue conditions and choose a low-crowd route before the halftime surge.',
+    title: 'Crowd management',
+    body: 'Labelled crowd density and queue projections steer fans through a low-crowd routing mode.',
     icon: '👥',
   },
   {
-    title: 'Accessibility built-in',
-    body: 'Step-free routing, sensory-safe zones, and a camera-based sign reader.',
+    title: 'Accessibility',
+    body: 'Step-free and sensory-safe routing, large text, reduced motion, live captions, and a camera sign reader.',
     icon: '♿',
   },
   {
-    title: 'Real-time decisions',
-    body: 'Connected navigation views receive demo closure and operational alerts via SSE.',
+    title: 'Transportation',
+    body: 'Multi-mode outdoor routing (drive / transit / two-wheeler / cycle / walk) to MetLife via Google Routes.',
+    icon: '🚆',
+  },
+  {
+    title: 'Real-time decision support',
+    body: 'SSE advisories reach fans in seconds; the navigation view excludes affected nodes and re-plans automatically.',
     icon: '⚡',
   },
   {
-    title: 'Operations Command',
-    body: 'A server-protected demo-operator dashboard for simulated briefings and venue-wide scenarios.',
+    title: 'Operational intelligence',
+    body: 'The Tournament Operations Console produces an AI briefing — headline, concerns, and prioritised recommendations from live venue state.',
     icon: '🎛️',
   },
 ];
@@ -94,7 +99,7 @@ export default function Landing() {
   const navItems: NavItem[] = [
     { id: 'concierge', icon: <ChatIcon />, label: 'Concierge', onClick: () => navigate('/concierge') },
     { id: 'navigate', icon: <MapPinIcon />, label: 'Tactical map', onClick: () => navigate('/navigate') },
-    { id: 'admin', icon: <ShieldIcon />, label: 'Staff', onClick: () => navigate('/admin') },
+    { id: 'admin', icon: <ShieldIcon />, label: 'Ops Console', onClick: () => navigate('/admin') },
   ];
   return (
     <div className="relative min-h-screen overflow-hidden bg-surface-950 font-sans text-surface-50">
@@ -133,7 +138,7 @@ export default function Landing() {
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary-400 opacity-75" />
               <span className="relative inline-flex h-2 w-2 rounded-full bg-primary-500" />
             </span>
-            Designed for FIFA World Cup 2026 · MetLife Stadium
+            FIFA World Cup 2026 · MetLife Stadium · Final · July 19, 2026
           </div>
 
           <h1 className="mt-8 max-w-4xl font-display text-5xl font-bold leading-[1.1] tracking-tight sm:text-6xl lg:text-7xl">
@@ -143,7 +148,7 @@ export default function Landing() {
           </h1>
 
           <p className="mt-8 max-w-2xl text-lg leading-relaxed text-surface-300 sm:text-xl">
-            Concourse is a GenAI companion designed to use the venue graph. Ask naturally, choose a response language, get a step-free route, avoid simulated crowds, and receive live demo alerts.
+            A GenAI-enabled smart-stadium platform for <strong className="text-surface-100">fans</strong>, <strong className="text-surface-100">venue staff</strong>, and <strong className="text-surface-100">tournament organizers</strong>. Navigation, crowd management, accessibility, transportation, multilingual assistance, operational intelligence, and real-time decision support — grounded in a real 3,479-node MetLife venue graph.
           </p>
 
           <div className="mt-10 flex w-full max-w-md flex-col gap-4 sm:flex-row sm:items-center sm:justify-center">
@@ -171,8 +176,8 @@ export default function Landing() {
         {/* Features Grid */}
         <section className="mt-16 pb-24">
           <div className="mb-12 text-center">
-            <h2 className="font-display text-3xl font-semibold text-surface-50">One agent. Five capabilities.</h2>
-            <p className="mt-3 text-surface-400">Powered by Qwen and a real 3,400+ node stadium graph.</p>
+            <h2 className="font-display text-3xl font-semibold text-surface-50">Every named area of Challenge 4.</h2>
+            <p className="mt-3 text-surface-400">Grounded in a Qwen-backed concierge, a 3,479-node MetLife venue graph, and the Tournament Operations Console.</p>
           </div>
 
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -192,9 +197,9 @@ export default function Landing() {
 
         {/* Footer */}
         <footer className="border-t border-surface-800/50 pb-12 pt-8 text-center text-sm text-surface-500">
-          <p>Built for the operational demo. (v2.1 Secured)</p>
+          <p>Built for PromptWars Virtual — Challenge 4: Smart Stadiums &amp; Tournament Operations.</p>
           <p className="mt-2">
-            <strong>Judge Instructions:</strong> Open <Link to="/navigate" className="text-primary hover:underline">/navigate</Link> and <Link to="/admin" className="text-accent hover:underline">/admin</Link> side-by-side to test live incident injection.
+            <strong>Judge walkthrough:</strong> open <Link to="/navigate" className="text-primary hover:underline">/navigate</Link> and the <Link to="/admin" className="text-accent hover:underline">Tournament Operations Console</Link> side-by-side, then trigger a route advisory to see real-time decision support in action.
           </p>
         </footer>
       </main>

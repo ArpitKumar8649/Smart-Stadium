@@ -1,3 +1,4 @@
+import { logger } from "../../lib/telemetry.ts";
 import { useCallback, useEffect, useState } from 'react';
 import { CrowdHeatmapResponseSchema, type CrowdHeatmapResponse } from '@concourse/shared';
 
@@ -14,7 +15,7 @@ export function useCrowdHeatmap() {
       const data = CrowdHeatmapResponseSchema.parse(await response.json());
       setCrowd(data);
     } catch (caught) {
-      console.error('Failed to refresh crowd heatmap', caught);
+      logger.error('Failed to refresh crowd heatmap', caught);
     }
   }, []);
 

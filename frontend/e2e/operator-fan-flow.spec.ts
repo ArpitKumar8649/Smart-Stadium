@@ -22,7 +22,7 @@ test('operator route advisory reaches a fan route and refreshes it automatically
 
     await passcode.fill(adminToken);
     await operator.getByRole('button', { name: 'Authenticate' }).click();
-    await expect(operator.getByText('OPS COMMAND')).toBeVisible();
+    await expect(operator.getByText('TOURNAMENT OPS')).toBeVisible();
 
     await operator.getByRole('button', { name: 'Enable guided demo' }).click();
     await expect(operator.getByRole('status')).toHaveText('Demo mode enabled. Simulation clock pinned to minute 40.');

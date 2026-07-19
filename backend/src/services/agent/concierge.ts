@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { getLlm } from '../llm/qwen.js';
 import type { ChatMessage, LlmStreamEvent } from '../llm/provider.js';
-import { TOOL_DEFINITIONS, handleToolCall } from './tools.js';
+import { TOOL_DEFINITIONS, handleToolCall } from './tools/index.js';
 import { buildSystemPrompt, CONCIERGE_TEMPERATURE } from './prompt.js';
 import { logger } from '../../middleware/logger.js';
 import { LlmCapacityError } from '../llm/rate-limit.js';
