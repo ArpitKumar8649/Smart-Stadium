@@ -89,7 +89,7 @@ adminRouter.post('/admin/incident', (req, res) => {
   } = parsed.data;
 
   const incident: Incident = {
-    id: `inc_${randomUUID().replace(/-/g, '').slice(0, 12)}`,
+    id: `inc_${randomUUID().replaceAll('-', '').slice(0, 12)}`,
     venue_id,
     kind,
     severity,
@@ -266,6 +266,14 @@ Write the human-readable text in this language: ${lang}. Do not invent numbers; 
       reversible: true,
     }));
     const now = new Date();
+    const zoneSuffix = concerns.length === 1 ? '' : 's';
+    let headlineText: string;
+    if (concerns.length > 0) {
+      headlineText = `${concerns.length} high-density zone${zoneSuffix} require attention.`;
+    } else {
+      headlineText = `Operations stable during ${sim.phase().replace('_', ' ')}.`;
+    }
+
     return BriefingSchema.parse({
       id: `brf_${randomUUID().slice(0, 8)}`,
       venue_id,
@@ -273,9 +281,7 @@ Write the human-readable text in this language: ${lang}. Do not invent numbers; 
       window_start: now.toISOString(),
       window_end: new Date(now.getTime() + 300_000).toISOString(),
       occupancy_pct,
-      headline: concerns.length > 0
-        ? `${concerns.length} high-density zone${concerns.length === 1 ? '' : 's'} require attention.`
-        : `Operations stable during ${sim.phase().replace('_', ' ')}.`,
+      headline: headlineText,
       summary: `Current simulated stadium occupancy is ${occupancy_pct}%. This briefing uses simulated matchday data while AI analysis is unavailable.`,
       concerns,
       recommendations,

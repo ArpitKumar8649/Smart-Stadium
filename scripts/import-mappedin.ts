@@ -182,13 +182,8 @@ interface Classified {
   accessibility: GraphNode['accessibility'];
 }
 
-function classifyLocation(loc: RawLocation, category: string | undefined): Classified {
-  const name = loc.name.toLowerCase();
-  const amenity = (loc.amenity ?? '').toLowerCase();
-  const tags = (loc.tags ?? []).map((t) => t.toLowerCase());
-  const hay = `${name} ${amenity} ${tags.join(' ')}`;
 
-  // 1. Specific overrides the 15 categories cannot express.
+function getOverrideType(hay: string): Classified | null {
   if (/first[- ]?aid|\baed\b|medical|emergency care|nurse station/.test(hay)) {
     return { type: 'first_aid', accessibility: ['step_free', 'wheelchair'] };
   }
@@ -204,20 +199,18 @@ function classifyLocation(loc: RawLocation, category: string | undefined): Class
   if (/nursing|lactation|mother.?s room|feeding/.test(hay)) {
     return { type: 'family_room', accessibility: ['step_free', 'wheelchair', 'family'] };
   }
+  return null;
+}
 
-  // 2. Category-driven classification (authoritative for the rest).
-  let type: NodeType | undefined = category ? CATEGORY_TO_TYPE[category] : undefined;
+function getFallbackType(locType: string | undefined): NodeType {
+  if (locType === 'seating') return 'seating_section';
+  if (locType === 'gate') return 'entry_gate';
+  if (locType === 'tenant') return 'concession';
+  if (locType === 'building') return 'concourse_segment';
+  return 'information_kiosk';
+}
 
-  // 3. Fall back to Mappedin location.type when no category.
-  if (!type) {
-    if (loc.type === 'seating') type = 'seating_section';
-    else if (loc.type === 'gate') type = 'entry_gate';
-    else if (loc.type === 'tenant') type = 'concession';
-    else if (loc.type === 'building') type = 'concourse_segment';
-    else type = 'information_kiosk';
-  }
-
-  // 4. Enrich by type.
+function enrichType(type: NodeType, hay: string): Classified {
   const acc: GraphNode['accessibility'] = [];
   const out: Classified = { type, accessibility: acc };
 
@@ -244,9 +237,23 @@ function classifyLocation(loc: RawLocation, category: string | undefined): Class
   return out;
 }
 
+function classifyLocation(loc: RawLocation, category: string | undefined): Classified {
+  const name = loc.name.toLowerCase();
+  const amenity = (loc.amenity ?? '').toLowerCase();
+  const tags = (loc.tags ?? []).map((t) => t.toLowerCase());
+  const hay = `${name} ${amenity} ${tags.join(' ')}`;
+
+  const override = getOverrideType(hay);
+  if (override) return override;
+
+  const type = (category ? CATEGORY_TO_TYPE[category] : undefined) || getFallbackType(loc.type);
+
+  return enrichType(type, hay);
+}
+
 /** Human-facing label for a node backed by a location. */
 function locationLabel(loc: RawLocation): string {
-  if (loc.type === 'seating' && /^[0-9]/.test(loc.name)) return `Section ${loc.name}`;
+  if (loc.type === 'seating' && /^\d/.test(loc.name)) return `Section ${loc.name}`;
   return loc.name;
 }
 
@@ -319,17 +326,9 @@ interface BuildStats {
   edgeNotAccessible: number;
 }
 
-function build(): { nodes: GraphNode[]; edges: GraphEdge[]; stats: BuildStats } {
-  const floors = loadFloors();
-  const rawNodes = loadNodes();
-  const connections = loadConnections();
-  const locations = loadLocations();
-  const spaces = loadSpaces();
-  const locCategory = loadLocationCategories();
 
+function buildNodeLinks(locations: RawLocation[], spaces: Map<string, RawSpace>, rawNodes: RawNode[]) {
   const nodeExists = new Set(rawNodes.map((n) => n.properties.id));
-
-  // --- Link locations -> nodes. Authoritative: location.nodes[]. ---
   const nodeToLoc = new Map<string, RawLocation>();
   const mappedViaNodes = new Set<string>();
   const mappedViaSpace = new Set<string>();
@@ -345,7 +344,6 @@ function build(): { nodes: GraphNode[]; edges: GraphEdge[]; stats: BuildStats } 
     if (linked) mappedViaNodes.add(loc.id);
   }
 
-  // Fallback: space.destinationNodes for locations still unlinked.
   const spaceToLoc = new Map<string, RawLocation>();
   for (const loc of locations) {
     if (loc.hidden || mappedViaNodes.has(loc.id)) continue;
@@ -364,17 +362,15 @@ function build(): { nodes: GraphNode[]; edges: GraphEdge[]; stats: BuildStats } 
     }
   }
 
-  // --- Node coord + floor lookups. ---
-  const nodeCoord = new Map<string, [number, number]>();
-  const nodeFloor = new Map<string, string>();
-  for (const rn of rawNodes) {
-    nodeCoord.set(rn.properties.id, rn.geometry.coordinates);
-    nodeFloor.set(rn.properties.id, rn.properties.map);
-  }
-  const floorElev = (fid: string) => floors.get(fid)?.elevation ?? 0;
-  const OUTDOOR_FLOOR = [...floors.values()].find((f) => /outdoor/i.test(f.name))?.id;
+  return { nodeToLoc, mappedViaNodes, mappedViaSpace };
+}
 
-  // --- Build nodes. ---
+function buildNodesList(
+  rawNodes: RawNode[],
+  floors: Map<string, MapFloor>,
+  nodeToLoc: Map<string, RawLocation>,
+  locCategory: Map<string, string>
+) {
   const nodes: GraphNode[] = [];
   const nodeById = new Map<string, GraphNode>();
   const perType: Record<string, number> = {};
@@ -424,7 +420,16 @@ function build(): { nodes: GraphNode[]; edges: GraphEdge[]; stats: BuildStats } 
     nodeById.set(node.id, node);
   }
 
-  // --- Vertical connection lookup by unordered pair. ---
+  return { nodes, nodeById, perType, perFloorNodes, poiCount };
+}
+
+function buildEdgesList(
+  rawNodes: RawNode[],
+  floors: Map<string, MapFloor>,
+  nodeCoord: Map<string, [number, number]>,
+  nodeFloor: Map<string, string>,
+  connections: RawConnection[]
+) {
   const connByPair = new Map<string, RawConnection>();
   for (const c of connections) {
     for (let i = 0; i < c.nodes.length; i++) {
@@ -434,20 +439,22 @@ function build(): { nodes: GraphNode[]; edges: GraphEdge[]; stats: BuildStats } 
     }
   }
 
-  // --- Build edges from node.neighbors (directed). ---
   const edges: GraphEdge[] = [];
   const edgePerConnType: Record<string, number> = {};
   let edgeHorizontal = 0;
   let edgeVertical = 0;
   let edgeAccessible = 0;
   let edgeNotAccessible = 0;
+  
+  const floorElev = (fid: string) => floors.get(fid)?.elevation ?? 0;
+  const OUTDOOR_FLOOR = [...floors.values()].find((f) => /outdoor/i.test(f.name))?.id;
 
   for (const rn of rawNodes) {
     const from = rn.properties.id;
     const fromCoord = nodeCoord.get(from)!;
     for (const nb of rn.properties.neighbors) {
       const to = nb.id;
-      if (to === from) continue; // drop self-loops (Mappedin lists some)
+      if (to === from) continue; 
       const toCoord = nodeCoord.get(to);
       if (!toCoord) continue;
       const dist = haversineM(fromCoord, toCoord);
@@ -511,7 +518,32 @@ function build(): { nodes: GraphNode[]; edges: GraphEdge[]; stats: BuildStats } 
     }
   }
 
-  // --- Connectivity bridging for orphaned POIs (same floor, <= BRIDGE_MAX_M). ---
+  return { edges, edgeHorizontal, edgeVertical, edgeAccessible, edgeNotAccessible, edgePerConnType };
+}
+
+function build(): { nodes: GraphNode[]; edges: GraphEdge[]; stats: BuildStats } {
+  const floors = loadFloors();
+  const rawNodes = loadNodes();
+  const connections = loadConnections();
+  const locations = loadLocations();
+  const spaces = loadSpaces();
+  const locCategory = loadLocationCategories();
+
+    const { nodeToLoc, mappedViaNodes, mappedViaSpace } = buildNodeLinks(locations, spaces, rawNodes);
+
+  // --- Node coord + floor lookups. ---
+  const nodeCoord = new Map<string, [number, number]>();
+  const nodeFloor = new Map<string, string>();
+  for (const rn of rawNodes) {
+    nodeCoord.set(rn.properties.id, rn.geometry.coordinates);
+    nodeFloor.set(rn.properties.id, rn.properties.map);
+  }
+
+  const { nodes, nodeById, perType, perFloorNodes, poiCount } = buildNodesList(rawNodes, floors, nodeToLoc, locCategory);
+
+  let { edgeAccessible, edgeNotAccessible } = buildEdgesList(rawNodes, floors, nodeCoord, nodeFloor, connections);
+  const { edges, edgeHorizontal, edgeVertical, edgePerConnType }  = buildEdgesList(rawNodes, floors, nodeCoord, nodeFloor, connections);
+// --- Connectivity bridging for orphaned POIs (same floor, <= BRIDGE_MAX_M). ---
   const edgeBridged = bridgeOrphanPois(nodes, edges, nodeById, nodeFloor);
   for (const e of edges.slice(edges.length - edgeBridged)) {
     if (e.wheelchair_accessible) edgeAccessible++;
@@ -573,33 +605,36 @@ function bridgeOrphanPois(
     }
     if (!best) continue;
     const secs = round(best.d / 1.2, 1);
-    edges.push({
-      from: poi.id,
-      to: best.id,
-      distance_m: round(best.d, 2),
-      avg_walk_seconds: secs,
-      indoor: true,
-      step_free: true,
-      wheelchair_accessible: true,
-      capacity_class: 'normal',
-      bidirectional: false,
-      notes: 'connectivity bridge',
-    });
-    edges.push({
-      from: best.id,
-      to: poi.id,
-      distance_m: round(best.d, 2),
-      avg_walk_seconds: secs,
-      indoor: true,
-      step_free: true,
-      wheelchair_accessible: true,
-      capacity_class: 'normal',
-      bidirectional: false,
-      notes: 'connectivity bridge',
-    });
+    const newEdges = [
+      {
+        from: poi.id,
+        to: best.id,
+        distance_m: round(best.d, 2),
+        avg_walk_seconds: secs,
+        indoor: true,
+        step_free: true,
+        wheelchair_accessible: true,
+        capacity_class: 'normal' as const,
+        bidirectional: false,
+        notes: 'connectivity bridge',
+      },
+      {
+        from: best.id,
+        to: poi.id,
+        distance_m: round(best.d, 2),
+        avg_walk_seconds: secs,
+        indoor: true,
+        step_free: true,
+        wheelchair_accessible: true,
+        capacity_class: 'normal' as const,
+        bidirectional: false,
+        notes: 'connectivity bridge',
+      },
+    ];
+    edges.push(...newEdges);
     added += 2;
   }
-  void nodeById;
+  
   return added;
 }
 
@@ -641,6 +676,25 @@ function largestComponent(nodes: GraphNode[], edges: GraphEdge[]): Set<string> {
   return best;
 }
 
+
+function computeComponentSize(startId: string, adj: Map<string, string[]>, seen: Set<string>): number {
+  let size = 0;
+  const stack = [startId];
+  seen.add(startId);
+  while (stack.length) {
+    const cur = stack.pop()!;
+    size++;
+    const neighbors = adj.get(cur) ?? [];
+    for (const nb of neighbors) {
+      if (!seen.has(nb)) {
+        seen.add(nb);
+        stack.push(nb);
+      }
+    }
+  }
+  return size;
+}
+
 function analyzeConnectivity(nodes: GraphNode[], edges: GraphEdge[]) {
   const adj = buildUndirectedAdj(nodes, edges);
   const seen = new Set<string>();
@@ -650,19 +704,7 @@ function analyzeConnectivity(nodes: GraphNode[], edges: GraphEdge[]) {
   for (const n of nodes) {
     if (seen.has(n.id)) continue;
     components++;
-    let size = 0;
-    const stack = [n.id];
-    seen.add(n.id);
-    while (stack.length) {
-      const cur = stack.pop()!;
-      size++;
-      for (const nb of adj.get(cur) ?? []) {
-        if (!seen.has(nb)) {
-          seen.add(nb);
-          stack.push(nb);
-        }
-      }
-    }
+    const size = computeComponentSize(n.id, adj, seen);
     if (size === 1) orphans++;
     largest = Math.max(largest, size);
   }
@@ -733,7 +775,9 @@ function report(nodes: GraphNode[], edges: GraphEdge[], stats: BuildStats) {
   console.log(`\n▸ Locations mapped: ${stats.locationsMapped}/${stats.locationsTotal}  (via nodes: ${stats.locationsViaNodes}, via space fallback: ${stats.locationsViaSpace})`);
   if (stats.unmappedLocations.length) {
     console.log(`    unmapped (${stats.unmappedLocations.length}):`);
-    for (const n of stats.unmappedLocations) console.log(`      · ${n}`);
+    for (const n of stats.unmappedLocations) {
+      console.log(`      · ${n}`);
+    }
   } else {
     console.log('    all non-hidden locations linked to a routing node ✓');
   }

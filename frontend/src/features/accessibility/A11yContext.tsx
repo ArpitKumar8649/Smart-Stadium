@@ -1,10 +1,10 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useState, useMemo, useCallback, type ReactNode } from 'react';
 import type { AccessibilityPrefs } from '@concourse/shared';
 import { A11yContext, DEFAULT_PREFS } from './a11yContextValue.ts';
 
 const PREFS_KEY = 'concourse.a11y_prefs';
 
-export function A11yProvider({ children }: { children: ReactNode }) {
+export function A11yProvider({ children }: Readonly<{ children: ReactNode }>) {
   const [prefs, setPrefs] = useState<AccessibilityPrefs>(() => {
     try {
       const stored = localStorage.getItem(PREFS_KEY);
@@ -25,12 +25,14 @@ export function A11yProvider({ children }: { children: ReactNode }) {
     root.dataset.concourseScreenReader = String(prefs.screen_reader);
   }, [prefs]);
 
-  const updatePref = (key: keyof AccessibilityPrefs, value: boolean) => {
+  const updatePref = useCallback((key: keyof AccessibilityPrefs, value: boolean) => {
     setPrefs((p) => ({ ...p, [key]: value }));
-  };
+  }, []);
+
+  const value = useMemo(() => ({ prefs, updatePref }), [prefs, updatePref]);
 
   return (
-    <A11yContext.Provider value={{ prefs, updatePref }}>
+    <A11yContext.Provider value={value}>
       {children}
     </A11yContext.Provider>
   );

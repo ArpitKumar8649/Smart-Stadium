@@ -32,7 +32,7 @@ class TokenBucket {
   private readonly refillPerMs: number;
   private readonly maxQueue: number;
   private last = Date.now();
-  private waiters: Waiter[] = [];
+  private readonly waiters: Waiter[] = [];
 
   constructor(capacity: number, refillPerMinute: number, maxQueue: number) {
     this.capacity = capacity;

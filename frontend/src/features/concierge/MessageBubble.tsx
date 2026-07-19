@@ -22,11 +22,19 @@ export function MessageBubble({ msg }: { msg: ChatMessage }) {
               : 'bg-surface-900 text-surface-50 rounded-bl-md',
           ].join(' ')}
         >
-          {msg.text ? (
-            <div className={`prose prose-sm max-w-none ${isUser ? 'prose-p:text-surface-950 prose-strong:text-surface-950' : 'prose-invert prose-p:text-surface-50 prose-strong:text-surface-50 prose-li:text-surface-50'} prose-p:my-1 prose-ul:my-1 prose-li:my-0.5`}>
-              <ReactMarkdown>{msg.text}</ReactMarkdown>
-            </div>
-          ) : (msg.streaming && (!msg.tools || msg.tools.length === 0) ? <TypingDots /> : null)}
+          {(() => {
+            if (msg.text) {
+              return (
+                <div className={`prose prose-sm max-w-none ${isUser ? 'prose-p:text-surface-950 prose-strong:text-surface-950' : 'prose-invert prose-p:text-surface-50 prose-strong:text-surface-50 prose-li:text-surface-50'} prose-p:my-1 prose-ul:my-1 prose-li:my-0.5`}>
+                  <ReactMarkdown>{msg.text}</ReactMarkdown>
+                </div>
+              );
+            }
+            if (msg.streaming && (!msg.tools || msg.tools.length === 0)) {
+              return <TypingDots />;
+            }
+            return null;
+          })()}
           {msg.text && msg.streaming && <span className="ml-0.5 inline-block animate-pulse text-primary-400">▍</span>}
         </div>
       </div>

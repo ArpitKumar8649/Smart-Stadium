@@ -41,9 +41,7 @@ describe('AdminLoginForm', () => {
 
     render(<AdminLoginForm error={null} clearError={vi.fn()} />);
 
-    await act(async () => {
-      await user.click(screen.getByRole('button', { name: /Sign in with Google/i }));
-    });
+    await user.click(screen.getByRole('button', { name: /Sign in with Google/i }));
 
     expect(logger.error).toHaveBeenCalledWith("Login failed:", error);
     expect(screen.getByRole('alert')).toHaveTextContent('Popup blocked');
@@ -55,9 +53,7 @@ describe('AdminLoginForm', () => {
 
     render(<AdminLoginForm error={null} clearError={vi.fn()} />);
 
-    await act(async () => {
-      await user.click(screen.getByRole('button', { name: /Sign in with Google/i }));
-    });
+    await user.click(screen.getByRole('button', { name: /Sign in with Google/i }));
 
     expect(screen.getByRole('alert')).toHaveTextContent('Failed to sign in with Google');
   });

@@ -27,7 +27,7 @@ export function createApp(): Express {
 
   // Security headers. contentSecurityPolicy is off here because the API serves
   // JSON/SSE only; Firebase Hosting owns frontend browser headers.
-  app.use(helmet({ contentSecurityPolicy: false }));
+  app.use(helmet({ contentSecurityPolicy: false })); // NOSONAR
   app.use(compression());
 
   app.use(

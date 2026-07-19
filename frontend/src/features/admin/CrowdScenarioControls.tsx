@@ -14,7 +14,7 @@ export function CrowdScenarioControls({
   incidentTarget,
   setIncidentTarget,
   handleInject,
-}: CrowdScenarioControlsProps) {
+}: Readonly<CrowdScenarioControlsProps>) {
   return (
     <section className="mt-auto border-t border-surface-800 pt-6">
       <h2 className="mb-1 font-display text-sm font-semibold uppercase tracking-wider text-accent">Real-time Decision Support</h2>

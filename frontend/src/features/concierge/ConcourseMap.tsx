@@ -88,45 +88,53 @@ export const ConcourseMap: React.FC<ConcourseMapProps> = (props) => {
       </div>
 
       <div className="relative flex-1 min-h-[300px]">
-        {mode === '2d' ? (
-          <OutdoorMap
-            userLocation={props.userLocation}
-            {...(props.encodedPolyline !== undefined ? { encodedPolyline: props.encodedPolyline } : {})}
-            {...(props.onSetLocation ? { onSetLocation: props.onSetLocation } : {})}
-          />
-        ) : threeFailed ? (
-          <div className="flex h-full w-full items-center justify-center bg-surface-950 p-6 text-center text-sm text-surface-300">
-            <div>
-              <p className="font-semibold text-surface-100">3D map unavailable</p>
-              <p className="mt-1 text-xs text-surface-500">
-                The 3D service didn't load. Try the 2D view — works everywhere.
-              </p>
-              <button
-                type="button"
-                onClick={() => setMode('2d')}
-                className="mt-3 rounded-lg border border-surface-700 px-3 py-1.5 text-xs hover:border-surface-500"
-              >
-                ← Back to 2D
-              </button>
-            </div>
-          </div>
-        ) : (
-          <ThreeDErrorBoundary onError={() => setThreeFailed(true)}>
-            <Suspense
-              fallback={
-                <div className="flex h-full w-full items-center justify-center bg-surface-950 text-xs text-surface-400">
-                  Loading 3D tiles…
-                </div>
-              }
-            >
-              <StadiumMap3D
+        {(() => {
+          if (mode === '2d') {
+            return (
+              <OutdoorMap
                 userLocation={props.userLocation}
                 {...(props.encodedPolyline !== undefined ? { encodedPolyline: props.encodedPolyline } : {})}
-                {...(props.focusSection !== undefined ? { focusSection: props.focusSection } : {})}
+                {...(props.onSetLocation ? { onSetLocation: props.onSetLocation } : {})}
               />
-            </Suspense>
-          </ThreeDErrorBoundary>
-        )}
+            );
+          }
+          if (threeFailed) {
+            return (
+              <div className="flex h-full w-full items-center justify-center bg-surface-950 p-6 text-center text-sm text-surface-300">
+                <div>
+                  <p className="font-semibold text-surface-100">3D map unavailable</p>
+                  <p className="mt-1 text-xs text-surface-500">
+                    The 3D service didn't load. Try the 2D view — works everywhere.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setMode('2d')}
+                    className="mt-3 rounded-lg border border-surface-700 px-3 py-1.5 text-xs hover:border-surface-500"
+                  >
+                    ← Back to 2D
+                  </button>
+                </div>
+              </div>
+            );
+          }
+          return (
+            <ThreeDErrorBoundary onError={() => setThreeFailed(true)}>
+              <Suspense
+                fallback={
+                  <div className="flex h-full w-full items-center justify-center bg-surface-950 text-xs text-surface-400">
+                    Loading 3D tiles…
+                  </div>
+                }
+              >
+                <StadiumMap3D
+                  userLocation={props.userLocation}
+                  {...(props.encodedPolyline !== undefined ? { encodedPolyline: props.encodedPolyline } : {})}
+                  {...(props.focusSection !== undefined ? { focusSection: props.focusSection } : {})}
+                />
+              </Suspense>
+            </ThreeDErrorBoundary>
+          );
+        })()}
       </div>
     </div>
   );

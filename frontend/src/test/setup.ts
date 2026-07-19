@@ -10,15 +10,15 @@ class MockIntersectionObserver implements IntersectionObserver {
   observe(target: Element) {
     this.callback([{ isIntersecting: true, target } as IntersectionObserverEntry], this);
   }
-  unobserve() {}
-  disconnect() {}
+  unobserve() { /* no-op */ }
+  disconnect() { /* no-op */ }
   takeRecords(): IntersectionObserverEntry[] { return []; }
 }
 
 class MockResizeObserver implements ResizeObserver {
-  observe() {}
-  unobserve() {}
-  disconnect() {}
+  observe() { /* no-op */ }
+  unobserve() { /* no-op */ }
+  disconnect() { /* no-op */ }
 }
 
 type Listener = (event?: Event) => void;
@@ -40,7 +40,9 @@ class MockMediaQueryList extends EventTarget implements MediaQueryList {
     Object.defineProperty(event, 'matches', { value: this.matches });
     Object.defineProperty(event, 'media', { value: this.media });
     this.dispatchEvent(event);
-    this.onchange?.call(this, event);
+    if (this.onchange) {
+      this.onchange(event);
+    }
   }
 }
 

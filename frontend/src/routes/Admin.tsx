@@ -116,7 +116,7 @@ export default function Admin() {
         <div className="flex items-center gap-4 text-xs font-mono">
           <span className="text-surface-400">Phase: <strong className="text-surface-100">{crowd?.phase || '...'}</strong></span>
           <span className="text-surface-400">Min: <strong className="text-surface-100">{crowd?.sim_minute || '...'}</strong></span>
-          <button onClick={signOut} className="text-primary hover:underline bg-transparent border-none cursor-pointer">Sign Out</button>
+          <button type="button" onClick={signOut} className="text-primary hover:underline bg-transparent border-none cursor-pointer">Sign Out</button>
           <Link to="/" className="text-primary hover:underline">Exit to fan view</Link>
         </div>
       </header>
@@ -155,7 +155,7 @@ export default function Admin() {
         <div className="relative flex-1 bg-surface-950 p-4">
           <div className="absolute right-8 top-8 z-10 flex gap-1 rounded-lg bg-surface-900/80 p-1 backdrop-blur">
             {[0, 1, 2, 3, 4, 5, 6, 7].map(lvl => (
-              <button key={lvl} onClick={() => setActiveFloor(lvl)} className={`h-8 w-8 rounded-md text-xs font-bold transition ${activeFloor === lvl ? 'bg-primary text-surface-950' : 'text-surface-400 hover:bg-surface-800 hover:text-surface-100'}`}>
+              <button type="button" key={lvl} onClick={() => setActiveFloor(lvl)} className={`h-8 w-8 rounded-md text-xs font-bold transition ${activeFloor === lvl ? 'bg-primary text-surface-950' : 'text-surface-400 hover:bg-surface-800 hover:text-surface-100'}`}>
                 {lvl}
               </button>
             ))}

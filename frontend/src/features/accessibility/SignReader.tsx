@@ -2,7 +2,7 @@ import { useState, useRef } from 'react';
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? '';
 
-export function SignReader({ lang = 'en', onDescription }: { lang?: string, onDescription: (text: string) => void }) {
+export function SignReader({ lang = 'en', onDescription }: Readonly<{ lang?: string, onDescription: (text: string) => void }>) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -59,6 +59,7 @@ export function SignReader({ lang = 'en', onDescription }: { lang?: string, onDe
         onChange={handleCapture}
       />
       <button
+        type="button"
         onClick={() => fileInputRef.current?.click()}
         disabled={loading}
         className="flex items-center justify-center gap-2 rounded-xl border border-surface-700 bg-surface-900 px-4 py-3 text-sm font-semibold text-surface-50 transition hover:bg-surface-800 disabled:opacity-50"

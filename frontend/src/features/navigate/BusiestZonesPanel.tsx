@@ -13,11 +13,11 @@ export function BusiestZonesPanel({
   activeZones,
   forecast,
   setSelectedZone,
-}: {
+}: Readonly<{
   activeZones: CrowdMapZone[];
   forecast: ForecastOffset;
   setSelectedZone: (zone: CrowdMapZone) => void;
-}) {
+}>) {
   const sortedZones = useMemo(
     () => [...activeZones].sort((a, b) => densityAt(b, forecast) - densityAt(a, forecast)),
     [activeZones, forecast]
@@ -32,6 +32,7 @@ export function BusiestZonesPanel({
           return (
             <li key={zone.zone_id}>
               <button
+                type="button"
                 onClick={() => setSelectedZone(zone)}
                 className="flex w-full items-center justify-between gap-3 rounded-lg px-2 py-1.5 text-left text-xs transition hover:bg-surface-800 focus-visible:ring-2 focus-visible:ring-primary"
               >

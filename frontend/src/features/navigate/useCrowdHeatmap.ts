@@ -14,8 +14,8 @@ export function useCrowdHeatmap() {
       if (!response.ok) throw new Error(`Crowd endpoint returned ${response.status}`);
       const data = CrowdHeatmapResponseSchema.parse(await response.json());
       setCrowd(data);
-    } catch (caught) {
-      logger.error('Failed to refresh crowd heatmap', caught);
+    } catch (error_) {
+      logger.error('Failed to refresh crowd heatmap', error_);
     }
   }, []);
 

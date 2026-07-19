@@ -20,9 +20,12 @@ export function handleResolvePlace(raw: unknown): ToolResult {
     level_name: LEVEL_NAMES[n.level] ?? `Level ${n.level}`,
   }));
   const data = { query, candidates };
-  const summary =
-    candidates.length === 0
-      ? `No matches for "${query}"`
-      : `${candidates.length} match${candidates.length === 1 ? '' : 'es'} for "${query}"`;
+  let summary: string;
+  if (candidates.length === 0) {
+    summary = `No matches for "${query}"`;
+  } else {
+    const plural = candidates.length === 1 ? '' : 'es';
+    summary = `${candidates.length} match${plural} for "${query}"`;
+  }
   return ok(data, summary);
 }

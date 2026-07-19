@@ -5,7 +5,14 @@ interface DemoControlsProps {
   toggleDemoMode: () => void;
 }
 
-export function DemoControls({ demoActive, demoLoading, demoMessage, toggleDemoMode }: DemoControlsProps) {
+export function DemoControls({ demoActive, demoLoading, demoMessage, toggleDemoMode }: Readonly<DemoControlsProps>) {
+  let buttonLabel = 'Enable guided demo';
+  if (demoLoading) {
+    buttonLabel = 'Updating…';
+  } else if (demoActive) {
+    buttonLabel = 'Restore live simulation';
+  }
+
   return (
     <section className="mb-6 rounded-xl border border-accent/30 bg-accent/5 p-3">
       <h2 className="font-display text-sm font-semibold uppercase tracking-wider text-accent">Guided demo</h2>
@@ -19,9 +26,9 @@ export function DemoControls({ demoActive, demoLoading, demoMessage, toggleDemoM
         aria-pressed={demoActive}
         className="mt-3 w-full rounded-lg border border-accent/50 px-3 py-2 text-xs font-semibold text-accent transition hover:bg-accent hover:text-surface-950 disabled:opacity-50"
       >
-        {demoLoading ? 'Updating…' : demoActive ? 'Restore live simulation' : 'Enable guided demo'}
+        {buttonLabel}
       </button>
-      {demoMessage && <p className="mt-2 text-xs text-surface-300" role="status">{demoMessage}</p>}
+      {demoMessage && <output className="mt-2 text-xs text-surface-300 block">{demoMessage}</output>}
     </section>
   );
 }

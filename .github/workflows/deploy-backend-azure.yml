@@ -13,25 +13,10 @@ on:
       - '.github/workflows/deploy-backend-azure.yml'
   workflow_dispatch:
 
-permissions:
-  contents: read
-
-concurrency:
-  group: azure-backend-production
-  cancel-in-progress: true
-
-env:
-  AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
-  AZURE_WEBAPP_NAME: ${{ vars.AZURE_WEBAPP_NAME }}
-  # Exact, comma-separated browser origins allowed to call the API. This is
-  # intentionally a repository variable rather than a wildcard CORS setting.
-  ALLOWED_ORIGINS: ${{ vars.ALLOWED_ORIGINS }}
-  # Azure's current Linux runtime offers Node 22 LTS. The project supports it
-  # and uses this same major version while building the deployment artifact.
-  NODE_VERSION: 22.x
-
 jobs:
   build:
+    permissions:
+      contents: read
     # Keeps the initial repository push safe: the job is skipped until the
     # non-secret Azure resource variables are configured in GitHub.
     if: >-
@@ -95,7 +80,7 @@ jobs:
           path: backend-deployment
 
       - name: Sign in to Azure using OpenID Connect
-        uses: azure/login@v2
+        uses: azure/login@6c251865b4e6290e7b78be643ea2d005bc51f69a # v2.1.1
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
@@ -127,7 +112,7 @@ jobs:
             --web-sockets-enabled true
 
       - name: Deploy the built backend to Azure Web App
-        uses: azure/webapps-deploy@v3
+        uses: azure/webapps-deploy@145a0687697df1d8a28909569f6e5d86213041f9 # v3.0.0
         with:
           app-name: ${{ env.AZURE_WEBAPP_NAME }}
           package: backend-deployment

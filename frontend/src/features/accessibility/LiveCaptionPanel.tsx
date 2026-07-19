@@ -19,6 +19,20 @@ export function LiveCaptionPanel() {
 
   const active = state === 'listening' || state === 'connecting';
 
+  let indicatorClass = 'bg-surface-950/60';
+  if (state === 'listening') {
+    indicatorClass = 'animate-pulse bg-white';
+  } else if (active) {
+    indicatorClass = 'bg-white/70';
+  }
+
+  let buttonText = 'Start captions';
+  if (state === 'connecting') {
+    buttonText = 'Starting…';
+  } else if (active) {
+    buttonText = 'Stop';
+  }
+
   return (
     <div className="rounded-2xl border border-surface-800 bg-surface-900 p-4 shadow-xl">
       <div className="mb-3 flex items-center justify-between gap-3">
@@ -41,12 +55,10 @@ export function LiveCaptionPanel() {
           }`}
         >
           <span
-            className={`inline-block h-2 w-2 rounded-full ${
-              state === 'listening' ? 'animate-pulse bg-white' : active ? 'bg-white/70' : 'bg-surface-950/60'
-            }`}
+            className={`inline-block h-2 w-2 rounded-full ${indicatorClass}`}
             aria-hidden="true"
           />
-          {state === 'connecting' ? 'Starting…' : active ? 'Stop' : 'Start captions'}
+          {buttonText}
         </button>
       </div>
 
@@ -69,7 +81,7 @@ export function LiveCaptionPanel() {
         )}
         <div className="space-y-1.5">
           {lines.map((line, i) => (
-            <p key={i} className="text-[15px] leading-snug text-surface-50">
+            <p key={line.substring(0, 20) + i} className="text-[15px] leading-snug text-surface-50">
               {line}
             </p>
           ))}

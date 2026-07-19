@@ -8,10 +8,10 @@ function humanTime(seconds: number): string {
 export function RouteSummaryPanel({
   route,
   routeFromCache,
-}: {
+}: Readonly<{
   route: NavigationRouteResponse | null;
   routeFromCache: boolean;
-}) {
+}>) {
   return (
     <section className="rounded-2xl border border-surface-800 bg-surface-900 p-4">
       <p className="font-mono text-xs uppercase tracking-widest text-primary">Route</p>

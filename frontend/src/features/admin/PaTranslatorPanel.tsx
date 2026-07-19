@@ -35,7 +35,7 @@ type PaTranslatorPanelProps = {
  * This is generative audio (real prosody), not the flat browser voice: "GenAI
  * beyond an LLM". A "generated live" badge keeps us honest about what's synthetic.
  */
-export function PaTranslatorPanel({ adminToken, onUnauthorized }: PaTranslatorPanelProps) {
+export function PaTranslatorPanel({ adminToken, onUnauthorized }: Readonly<PaTranslatorPanelProps>) {
   const [text, setText] = useState('Gate C is now closing. Please proceed to your seats.');
   const [selected, setSelected] = useState<string[]>(['es', 'hi', 'ar']);
   const [busy, setBusy] = useState(false);
@@ -155,7 +155,12 @@ export function PaTranslatorPanel({ adminToken, onUnauthorized }: PaTranslatorPa
         disabled={busy || !text.trim() || selected.length === 0}
         className="mt-3 w-full rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-surface-950 transition hover:bg-primary-400 disabled:opacity-50"
       >
-        {busy ? 'Synthesizing…' : `📢 Announce in ${selected.length} language${selected.length === 1 ? '' : 's'}`}
+        {busy ? 'Synthesizing…' : (
+          (() => {
+            const suffix = selected.length === 1 ? '' : 's';
+            return `📢 Announce in ${selected.length} language${suffix}`;
+          })()
+        )}
       </button>
 
       {error && <p className="mt-2 text-xs text-red-400" role="alert">{error}</p>}
@@ -189,7 +194,9 @@ export function PaTranslatorPanel({ adminToken, onUnauthorized }: PaTranslatorPa
       )}
 
       {/* Shared playback element. */}
-      <audio ref={audioRef} className="hidden" />
+      <audio ref={audioRef} className="hidden">
+        <track kind="captions" />
+      </audio>
     </section>
   );
 }

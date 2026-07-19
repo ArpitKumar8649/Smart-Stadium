@@ -1,4 +1,4 @@
-export function Logo({ className = 'h-8 w-8' }: { className?: string }) {
+export function Logo({ className = 'h-8 w-8' }: Readonly<{ className?: string }>) {
   return (
     <svg
       viewBox="0 0 32 32"
@@ -19,7 +19,7 @@ export function Logo({ className = 'h-8 w-8' }: { className?: string }) {
   );
 }
 
-export function Wordmark({ className = '' }: { className?: string }) {
+export function Wordmark({ className = '' }: Readonly<{ className?: string }>) {
   return (
     <div className={`flex items-center gap-2 ${className}`}>
       <Logo className="h-7 w-7" />

@@ -1,11 +1,11 @@
 import { logger } from "../../lib/telemetry.ts";
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useState, useMemo, useCallback, type ReactNode } from 'react';
 import type { Alert } from '@concourse/shared';
 import { AlertContext } from './alertContextValue.ts';
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? '';
 
-export function AlertProvider({ children }: { children: ReactNode }) {
+export function AlertProvider({ children }: Readonly<{ children: ReactNode }>) {
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
 
@@ -14,6 +14,23 @@ export function AlertProvider({ children }: { children: ReactNode }) {
     let reconnectTimer: number | null = null;
     let mounted = true;
     let retryCount = 0;
+
+    
+    const handleMessage = (event: MessageEvent) => {
+      if (!mounted) return;
+      try {
+        const data = JSON.parse(event.data);
+        if (data.type === 'sync') {
+          setAlerts(data.alerts);
+        } else if (data.type === 'alert') {
+          setAlerts((prev) => {
+            const exists = prev.find((a) => a.id === data.alert.id);
+            if (exists) return prev;
+            return [data.alert, ...prev];
+          });
+        }
+      } catch { /* ignore heartbeat pings */ }
+    };
 
     const connect = () => {
       if (!mounted) return;
@@ -25,22 +42,7 @@ export function AlertProvider({ children }: { children: ReactNode }) {
       }
       es = new EventSource(`${API_BASE}/api/alerts/stream`);
 
-      es.onmessage = (event) => {
-        if (!mounted) return;
-        try {
-          const data = JSON.parse(event.data);
-          if (data.type === 'sync') {
-            setAlerts(data.alerts);
-          } else if (data.type === 'alert') {
-            setAlerts((prev) => {
-              // Ensure uniqueness if we get duplicates via reconnects
-              const exists = prev.find((a) => a.id === data.alert.id);
-              if (exists) return prev;
-              return [data.alert, ...prev];
-            });
-          }
-        } catch { /* ignore heartbeat pings */ }
-      };
+      es.onmessage = handleMessage;
 
       es.onerror = () => {
         if (!mounted) return;
@@ -72,16 +74,18 @@ export function AlertProvider({ children }: { children: ReactNode }) {
     return true;
   });
 
-  const dismissAlert = (id: string) => {
+  const dismissAlert = useCallback((id: string) => {
     setDismissed((prev) => {
       const next = new Set(prev);
       next.add(id);
       return next;
     });
-  };
+  }, []);
+
+  const value = useMemo(() => ({ activeAlerts, dismissAlert }), [activeAlerts, dismissAlert]);
 
   return (
-    <AlertContext.Provider value={{ activeAlerts, dismissAlert }}>
+    <AlertContext.Provider value={value}>
       {children}
     </AlertContext.Provider>
   );

@@ -81,11 +81,20 @@ export function useCesiumPerformanceProfile(): CesiumPerformanceProfile {
       };
     }
 
-    legacyPointer.addListener(update);
+    // eslint-disable-next-line @typescript-eslint/unbound-method
+    if (typeof legacyPointer.addListener === 'function') {
+      // @ts-expect-error Typescript considers this deprecated, but it's needed for old Safari.
+      legacyPointer.addListener(update);
+      return () => {
+        window.removeEventListener('resize', update);
+        window.removeEventListener('orientationchange', update);
+        // @ts-expect-error Same reason
+        legacyPointer.removeListener(update);
+      };
+    }
     return () => {
       window.removeEventListener('resize', update);
       window.removeEventListener('orientationchange', update);
-      legacyPointer.removeListener(update);
     };
   }, []);
 

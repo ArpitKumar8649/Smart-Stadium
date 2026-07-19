@@ -106,7 +106,7 @@ function buildIndex(): GraphIndex {
 
 /** The lazily-loaded, frozen graph singleton. */
 export function getGraph(): GraphIndex {
-  if (!singleton) singleton = buildIndex();
+  singleton ??= buildIndex();
   return singleton;
 }
 
@@ -126,6 +126,32 @@ const STOPWORDS = new Set(['the', 'a', 'an', 's', 'to', 'at', 'of', 'near', 'nea
  * overlap, with a strong boost when a numeric query matches a seating section's
  * number as a whole word (so "144" → "Section 144", not "Section 1442").
  */
+
+function calcTokenScore(label: string, labelTokenSet: Set<string>, tokens: readonly string[], node: Node): number {
+  if (tokens.length === 0) return 0;
+  
+  let score = 0;
+  let matched = 0;
+  for (const t of tokens) {
+    if (STOPWORDS.has(t)) {
+      matched += 1;
+      continue;
+    }
+    if (labelTokenSet.has(t)) matched += 1;
+    else if (label.includes(t)) matched += 0.5;
+  }
+  const ratio = matched / tokens.length;
+  score += ratio * 300;
+
+  // Whole-word numeric match is decisive for seating sections / gates.
+  for (const t of tokens) {
+    if (/^\d+$/.test(t) && labelTokenSet.has(t)) {
+      score += node.type === 'seating_section' ? 500 : 250;
+    }
+  }
+  return score;
+}
+
 function scoreNode(node: Node, q: string, tokens: readonly string[]): number {
   const label = normalize(node.label);
   if (!label) return 0;
@@ -138,24 +164,7 @@ function scoreNode(node: Node, q: string, tokens: readonly string[]): number {
   if (tokens.length > 0) {
     const labelTokens = label.split(' ');
     const labelTokenSet = new Set(labelTokens);
-    let matched = 0;
-    for (const t of tokens) {
-      if (STOPWORDS.has(t)) {
-        matched += 1;
-        continue;
-      }
-      if (labelTokenSet.has(t)) matched += 1;
-      else if (label.includes(t)) matched += 0.5;
-    }
-    const ratio = matched / tokens.length;
-    score += ratio * 300;
-
-    // Whole-word numeric match is decisive for seating sections / gates.
-    for (const t of tokens) {
-      if (/^\d+$/.test(t) && labelTokenSet.has(t)) {
-        score += node.type === 'seating_section' ? 500 : 250;
-      }
-    }
+    score += calcTokenScore(label, labelTokenSet, tokens, node);
   }
 
   // Gentle tie-break toward shorter, more specific labels.
@@ -202,7 +211,7 @@ export function searchNodes(query: string, limit = 8): Node[] {
   return scored.slice(0, Math.max(0, limit)).map((x) => x.node);
 }
 
-const STEP_FREE_TAGS: ReadonlyArray<Node['accessibility'][number]> = ['step_free', 'wheelchair'];
+const STEP_FREE_TAGS: ReadonlySet<Node['accessibility'][number]> = new Set(['step_free', 'wheelchair']);
 
 /**
  * Nodes of a given type ranked by straight-line distance from an origin node
@@ -233,7 +242,7 @@ export function nearestNodesByType(
   const ranked: Array<{ node: Node; dist: number }> = [];
   for (const node of candidates) {
     if (node.id === fromNodeId) continue;
-    if (requireStepFree && !node.accessibility.some((a) => STEP_FREE_TAGS.includes(a))) continue;
+    if (requireStepFree && !node.accessibility.some((a) => STEP_FREE_TAGS.has(a))) continue;
     if (dietary === 'halal' && !node.halal) continue;
     if (dietary === 'vegetarian' && !node.vegetarian) continue;
     ranked.push({ node, dist: haversineMeters(origin.coords, node.coords) });

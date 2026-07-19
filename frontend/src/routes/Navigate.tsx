@@ -44,9 +44,11 @@ export default function Navigate() {
   const { prefs } = useA11y();
   const [fromLabel, setFromLabel] = useState('Section 144');
   const [toLabel, setToLabel] = useState('Section 108');
-  const [mode, setMode] = useState<RoutingMode>(
-    prefs.step_free ? 'step_free' : prefs.sensory_safe ? 'sensory_safe' : 'low_crowd'
-  );
+  const [mode, setMode] = useState<RoutingMode>(() => {
+    if (prefs.step_free) return 'step_free';
+    if (prefs.sensory_safe) return 'sensory_safe';
+    return 'low_crowd';
+  });
 
   const [activeFloor, setActiveFloor] = useState(1);
   const [forecast, setForecast] = useState<ForecastOffset>(0);
@@ -78,7 +80,13 @@ export default function Navigate() {
 
   // Sync preference mode
   useEffect(() => {
-    const preference = prefs.step_free ? 'step_free' : prefs.sensory_safe ? 'sensory_safe' : null;
+    let preference: RoutingMode | null = null;
+    if (prefs.step_free) {
+      preference = 'step_free';
+    } else if (prefs.sensory_safe) {
+      preference = 'sensory_safe';
+    }
+
     if (!preference || preference === mode) return;
     setMode(preference);
   }, [mode, prefs.sensory_safe, prefs.step_free]);
@@ -126,7 +134,7 @@ export default function Navigate() {
         />
 
         {error && <p role="alert" className="mt-3 text-sm text-red-300">{error}</p>}
-        {lastAutoRefresh && <p role="status" className="mt-3 text-sm text-primary-200">{lastAutoRefresh}</p>}
+        {lastAutoRefresh && <output className="mt-3 text-sm text-primary-200 block">{lastAutoRefresh}</output>}
       </section>
 
       <section className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
@@ -138,9 +146,10 @@ export default function Navigate() {
           />
 
           <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-            <div className="flex max-w-full gap-1 overflow-x-auto rounded-xl border border-surface-800 bg-surface-900 p-1" role="group" aria-label="Stadium floor">
+            <fieldset className="flex max-w-full gap-1 overflow-x-auto rounded-xl border border-surface-800 bg-surface-900 p-1" aria-label="Stadium floor">
               {FLOORS.map((floor) => (
                 <button
+                  type="button"
                   key={floor.level}
                   aria-pressed={activeFloor === floor.level}
                   onClick={() => setActiveFloor(floor.level)}
@@ -154,11 +163,12 @@ export default function Navigate() {
                   {floor.label}
                 </button>
               ))}
-            </div>
+            </fieldset>
 
-            <div className="flex rounded-xl border border-surface-800 bg-surface-900 p-1" role="group" aria-label="Crowd forecast time">
+            <fieldset className="flex rounded-xl border border-surface-800 bg-surface-900 p-1" aria-label="Crowd forecast time">
               {([0, 15, 30] as ForecastOffset[]).map((offset) => (
                 <button
+                  type="button"
                   key={offset}
                   onClick={() => setForecast(offset)}
                   className={[
@@ -170,7 +180,7 @@ export default function Navigate() {
                   {offset === 0 ? 'Now' : `+${offset}m`}
                 </button>
               ))}
-            </div>
+            </fieldset>
           </div>
 
           <div className="h-[min(62vh,620px)]">

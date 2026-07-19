@@ -7,7 +7,7 @@ interface BriefingPanelProps {
   onRefresh: (force?: boolean) => void;
 }
 
-export function BriefingPanel({ briefing, loading, error, onRefresh }: BriefingPanelProps) {
+export function BriefingPanel({ briefing, loading, error, onRefresh }: Readonly<BriefingPanelProps>) {
   return (
     <section className="mb-6">
       <div className="mb-3 flex items-center justify-between">
@@ -15,7 +15,7 @@ export function BriefingPanel({ briefing, loading, error, onRefresh }: BriefingP
           <h2 className="font-display text-sm font-semibold uppercase tracking-wider text-surface-300">Operational Intelligence Briefing</h2>
           <p className="text-[10px] uppercase tracking-wider text-surface-500">AI synthesis · headline · concerns · recommendations</p>
         </div>
-        <button onClick={() => onRefresh(true)} disabled={loading} className="text-xs text-primary hover:underline disabled:opacity-50">
+        <button type="button" onClick={() => onRefresh(true)} disabled={loading} className="text-xs text-primary hover:underline disabled:opacity-50">
           {loading ? 'Syncing...' : 'Refresh'}
         </button>
       </div>
@@ -31,8 +31,8 @@ export function BriefingPanel({ briefing, loading, error, onRefresh }: BriefingP
             <div>
               <h4 className="mb-2 text-xs font-semibold text-surface-400">Identified Concerns</h4>
               <ul className="space-y-2">
-                {briefing.concerns.map((c: BriefingConcern, i) => (
-                  <li key={i} className="flex gap-2 rounded-lg bg-surface-900 p-2 text-xs">
+                {briefing.concerns.map((c: BriefingConcern) => (
+                  <li key={c.zone_id + c.concern.substring(0, 10)} className="flex gap-2 rounded-lg bg-surface-900 p-2 text-xs">
                     <span className={`shrink-0 rounded px-1.5 py-0.5 font-bold ${c.severity === 'warn' || c.severity === 'critical' ? 'bg-red-950 text-red-400' : 'bg-surface-800 text-surface-300'}`}>
                       {c.severity.toUpperCase()}
                     </span>
@@ -47,8 +47,8 @@ export function BriefingPanel({ briefing, loading, error, onRefresh }: BriefingP
             <div>
               <h4 className="mb-2 text-xs font-semibold text-surface-400">Recommendations</h4>
               <ul className="space-y-2">
-                {briefing.recommendations.map((r: BriefingRecommendation, i) => (
-                  <li key={i} className="rounded-lg border border-surface-800 bg-surface-900 p-2 text-xs text-surface-200">
+                {briefing.recommendations.map((r: BriefingRecommendation) => (
+                  <li key={r.affected_zone_id + r.action.substring(0, 10)} className="rounded-lg border border-surface-800 bg-surface-900 p-2 text-xs text-surface-200">
                     {r.action}
                   </li>
                 ))}

@@ -14,6 +14,23 @@ const FindNearestArgs = z.object({
   dietary: z.enum(['halal', 'vegetarian']).optional(),
 });
 
+
+function findReachableCandidate(candidates: Node[], fromId: string, mode: 'step_free' | 'fastest'): { chosen: Node | undefined; result: RouteResponse | null } {
+  const graph = routerGraph(getGraph());
+  const sim = getCrowdSimulator();
+  let chosen: Node | undefined;
+  let result: RouteResponse | null = null;
+  for (const candidate of candidates) {
+    const r = route(graph, fromId, candidate.id, mode, (id) => sim.crowdPenaltyForNode(id));
+    if (r) {
+      chosen = candidate;
+      result = r;
+      break;
+    }
+  }
+  return { chosen, result };
+}
+
 export function handleFindNearest(raw: unknown): ToolResult {
   
   const parsed = FindNearestArgs.safeParse(raw);
@@ -40,31 +57,22 @@ export function handleFindNearest(raw: unknown): ToolResult {
   if (candidates.length === 0) {
     const dietaryNote = dietaryActive ? ` tagged ${dietary}` : '';
     return fail(
-      `No ${facility_type.replace(/_/g, ' ')}${dietaryNote} found near "${from.label}"` +
+      `No ${facility_type.replaceAll('_', ' ')}${dietaryNote} found near "${from.label}"` +
         (step_free ? ' with step-free access.' : '.'),
       `No ${dietaryActive ? dietary + ' ' : ''}${facility_type} near ${from.label}`,
     );
   }
 
+
   // Straight-line ranking is a prefilter; confirm with a real route and, if the
   // nearest is unreachable in the requested mode, fall through to the next.
   const mode = step_free ? 'step_free' : 'fastest';
-  const graph = routerGraph(getGraph());
-  const sim = getCrowdSimulator();
-  let chosen: Node | undefined;
-  let result: RouteResponse | null = null;
-  for (const candidate of candidates) {
-    const r = route(graph, from.id, candidate.id, mode, (id) => sim.crowdPenaltyForNode(id));
-    if (r) {
-      chosen = candidate;
-      result = r;
-      break;
-    }
-  }
+  const { chosen, result } = findReachableCandidate(candidates, from.id, mode);
+
 
   if (!chosen || !result) {
     return fail(
-      `Found ${facility_type.replace(/_/g, ' ')} nearby but could not compute a route from "${from.label}".`,
+      `Found ${facility_type.replaceAll('_', ' ')} nearby but could not compute a route from "${from.label}".`,
       `No route to ${facility_type} from ${from.label}`,
     );
   }
@@ -77,10 +85,7 @@ export function handleFindNearest(raw: unknown): ToolResult {
       .slice(0, 3)
       .map((c) => c.label),
   };
-  const summary = `Nearest ${dietaryActive ? dietary + ' ' : ''}${facility_type.replace(
-    /_/g,
-    ' ',
-  )}: ${chosen.label}, ${humanDuration(result.total_seconds)}`;
+  const summary = `Nearest ${dietaryActive ? dietary + ' ' : ''}${facility_type.replaceAll('_', ' ')}: ${chosen.label}, ${humanDuration(result.total_seconds)}`;
   return ok(data, summary);
   
 }

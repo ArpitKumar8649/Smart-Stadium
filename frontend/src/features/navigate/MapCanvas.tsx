@@ -70,7 +70,7 @@ export function MapCanvas({
   crowdZones = [],
   forecastOffset = 0,
   onZoneFocus,
-}: MapCanvasProps) {
+}: Readonly<MapCanvasProps>) {
   const [floors, setFloors] = useState<FloorFeature[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [loadAttempt, setLoadAttempt] = useState(0);
@@ -134,7 +134,7 @@ export function MapCanvas({
             </button>
           </div>
         ) : (
-          <span className="text-sm text-surface-400" role="status">Loading MetLife geometry…</span>
+          <output className="text-sm text-surface-400">Loading MetLife geometry…</output>
         )}
       </div>
     );
@@ -144,11 +144,11 @@ export function MapCanvas({
   const visibleRoutePoints = routePoints.filter((point) => point.level === level);
   const routeSegments = projectRouteSegments(routePoints, level, rendered.project);
   const startPoint = visibleRoutePoints[0];
-  const endPoint = visibleRoutePoints[visibleRoutePoints.length - 1];
+  const endPoint = visibleRoutePoints.at(-1);
 
   return (
     <div className="relative h-full min-h-[340px] w-full overflow-hidden rounded-2xl border border-surface-800 bg-surface-950 shadow-2xl">
-      <svg viewBox={`0 0 ${VIEW_WIDTH} ${VIEW_HEIGHT}`} className="h-full w-full" role="group" aria-label={`${rendered.activeFloor.properties.name} interactive stadium map`}>
+      <svg viewBox={`0 0 ${VIEW_WIDTH} ${VIEW_HEIGHT}`} className="h-full w-full" aria-label={`${rendered.activeFloor.properties.name} interactive stadium map`}>
         <defs>
           <pattern id="packed-hatch" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
             <line x1="0" y1="0" x2="0" y2="8" stroke="#fff" strokeWidth="2" opacity="0.38" />

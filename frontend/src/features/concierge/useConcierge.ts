@@ -91,32 +91,7 @@ export function useConcierge(sessionId: string) {
           return;
         }
 
-        const reader = res.body.getReader();
-        const decoder = new TextDecoder();
-        let buf = '';
-
-        for (;;) {
-          const { value, done } = await reader.read();
-          if (done) break;
-          buf += decoder.decode(value, { stream: true });
-
-          // SSE frames are separated by a blank line.
-          const frames = buf.split('\n\n');
-          buf = frames.pop() ?? '';
-          for (const frame of frames) {
-            const line = frame.split('\n').find((l) => l.startsWith('data:'));
-            if (!line) continue;
-            const json = line.slice(5).trim();
-            if (!json || json === '[DONE]') continue;
-            let ev: ChatEvent;
-            try {
-              ev = JSON.parse(json) as ChatEvent;
-            } catch {
-              continue;
-            }
-            applyEvent(ev, patch);
-          }
-        }
+        await readChatStream(res, patch);
         patch((m) => ({ ...m, streaming: false }));
       } catch (err) {
         if ((err as Error).name !== 'AbortError') {
@@ -137,6 +112,36 @@ export function useConcierge(sessionId: string) {
   const stop = useCallback(() => abortRef.current?.abort(), []);
 
   return { messages, busy, send, stop };
+}
+
+
+async function readChatStream(res: Response, patch: (fn: (m: ChatMessage) => ChatMessage) => void) {
+  if (!res.body) return;
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buf = '';
+
+  for (;;) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buf += decoder.decode(value, { stream: true });
+
+    const frames = buf.split('\n\n');
+    buf = frames.pop() ?? '';
+    for (const frame of frames) {
+      const line = frame.split('\n').find((l) => l.startsWith('data:'));
+      if (!line) continue;
+      const json = line.slice(5).trim();
+      if (!json || json === '[DONE]') continue;
+      let ev: ChatEvent;
+      try {
+        ev = JSON.parse(json) as ChatEvent;
+      } catch {
+        continue;
+      }
+      applyEvent(ev, patch);
+    }
+  }
 }
 
 function applyEvent(ev: ChatEvent, patch: (fn: (m: ChatMessage) => ChatMessage) => void) {

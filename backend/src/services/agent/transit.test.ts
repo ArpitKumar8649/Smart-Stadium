@@ -91,7 +91,7 @@ describe('estimateCarbonForOptions', () => {
       { mode: 'TRANSIT', distance_meters: 10_000, duration_seconds: 1800 },
       { mode: 'DRIVE', distance_meters: 10_000, duration_seconds: 1500 },
     ]);
-    expect(est.length).toBe(2);
+    expect(est).toHaveLength(2);
     // DRIVE factor > TRANSIT factor, so the second option must have more CO2.
     expect(est[1]?.co2_grams).toBeGreaterThan(est[0]?.co2_grams ?? 0);
   });

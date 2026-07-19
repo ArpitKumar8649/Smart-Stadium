@@ -106,7 +106,7 @@ export async function loadRooms(floorId: string, signal?: AbortSignal): Promise<
         ? ([p.center[0], p.center[1]] as [number, number])
         : null;
       return {
-        id: p.id ?? p.externalId ?? Math.random().toString(36),
+        id: p.id ?? p.externalId ?? crypto.randomUUID(),
         name: p.details?.name ?? '',
         hierarchies: geometryToHierarchies(f.geometry as Geometry),
         center,
@@ -182,7 +182,7 @@ export function parseSectionRef(text: string): string | null {
   const suite = text.match(/\bsuite\s*#?\s*(\d{1,2}(?:-\d{1,2})?)\b/i);
   if (suite && suite[1]) return `Suite ${suite[1]}`;
   // Numeric section (e.g. "section 128", "sec 220a").
-  const sec = text.match(/\bsec(?:tion)?\s*#?\s*(\d{1,3}[a-z]?)\b/i);
+  const sec = text.match(/\bsec(?:tion)?\s*#?\s*([0-9]{1,3}[a-zA-Z]?)\b/i);
   return sec && sec[1] ? sec[1].toUpperCase() : null;
 }
 

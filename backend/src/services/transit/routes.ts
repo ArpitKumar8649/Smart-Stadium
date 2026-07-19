@@ -62,7 +62,7 @@ export async function computeOutdoorMode(
       mode: entry.mode,
       label: entry.label,
       distance_meters: route.distanceMeters,
-      duration_seconds: parseInt(route.duration, 10),
+      duration_seconds: Number.parseInt(route.duration, 10),
       polyline: route.polyline?.encodedPolyline ?? '',
     };
   } catch {
@@ -77,9 +77,10 @@ export async function planGroundRoutes(origin: { lat: number; lng: number }): Pr
 }
 
 export function formatKm(meters: number): string {
-  return meters >= 1000
-    ? `${(meters / 1000).toFixed(meters >= 10000 ? 0 : 1)} km`
-    : `${Math.round(meters)} m`;
+  if (meters >= 1000) {
+    return `${(meters / 1000).toFixed(meters >= 10000 ? 0 : 1)} km`;
+  }
+  return `${Math.round(meters)} m`;
 }
 
 export function formatDuration(seconds: number): string {

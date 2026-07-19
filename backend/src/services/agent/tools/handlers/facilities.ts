@@ -24,8 +24,8 @@ export function handleListFacilities(raw: unknown): ToolResult {
 
   const CAP = 40;
   const items = nodes.slice(0, CAP).map(facilityView);
-  const label = facility_type.replace(/_/g, ' ');
-  const scope = level !== undefined ? ` on ${LEVEL_NAMES[level] ?? `level ${level}`}` : '';
+  const label = facility_type.replaceAll('_', ' ');
+  const scope = level !== undefined ? ` on ${LEVEL_NAMES[level] ?? 'level ' + level}` : '';
   const data = {
     facility_type,
     level: level ?? null,
@@ -33,9 +33,12 @@ export function handleListFacilities(raw: unknown): ToolResult {
     truncated: nodes.length > CAP,
     items,
   };
-  const summary =
-    nodes.length === 0
-      ? `No ${label} found${scope}`
-      : `${nodes.length} ${label}${nodes.length === 1 ? '' : 's'}${scope}`;
+  let summary: string;
+  if (nodes.length === 0) {
+    summary = `No ${label} found${scope}`;
+  } else {
+    const plural = nodes.length === 1 ? '' : 's';
+    summary = `${nodes.length} ${label}${plural}${scope}`;
+  }
   return ok(data, summary);
 }

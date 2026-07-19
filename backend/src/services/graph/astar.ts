@@ -1,5 +1,4 @@
-import type { Edge, Node, RouteResponse, RouteStep, VenueGraph } from '@concourse/shared';
-import type { RoutingMode } from '@concourse/shared';
+import type { Edge, Node, RouteResponse, RouteStep, VenueGraph, RoutingMode } from '@concourse/shared';
 
 /**
  * The indexed view of the venue graph the router consumes. The loader owns the
@@ -155,10 +154,15 @@ function buildInstruction(fromNode: Node, toNode: Node, edge: Edge): string {
 
   if (mentions('elevator')) {
     const name = transport?.label ?? 'the elevator';
-    return truncate(
-      toNode === transport ? `Take ${name}${dirSuffix}` : `Take ${name}${dirSuffix} to ${toNode.label}`,
-    );
+    let instruction: string;
+    if (toNode === transport) {
+      instruction = `Take ${name}${dirSuffix}`;
+    } else {
+      instruction = `Take ${name}${dirSuffix} to ${toNode.label}`;
+    }
+    return truncate(instruction);
   }
+
   if (mentions('escalator')) {
     const name = transport?.label ?? 'the escalator';
     return truncate(
@@ -184,32 +188,17 @@ function buildInstruction(fromNode: Node, toNode: Node, edge: Edge): string {
  * @param crowdPenalty Optional per-node crowd cost (seconds); only consulted in `low_crowd` mode.
  * @returns A {@link RouteResponse}, or `null` when either endpoint is unknown or no path exists.
  */
-export function route(
+
+function computePath(
   graph: GraphIndex,
   fromNodeId: string,
   toNodeId: string,
   mode: RoutingMode,
-  crowdPenalty: CrowdPenalty = () => 0,
-  blockedNode: BlockedNode = () => false,
-): RouteResponse | null {
-  const start = graph.nodes.get(fromNodeId);
+  crowdPenalty: CrowdPenalty,
+  blockedNode: BlockedNode
+): { path: string[]; pathEdges: Edge[] } | null {
   const goal = graph.nodes.get(toNodeId);
-  if (!start || !goal || blockedNode(fromNodeId) || blockedNode(toNodeId)) return null;
-
-  // Trivial route: already at the destination.
-  if (fromNodeId === toNodeId) {
-    return {
-      mode,
-      total_distance_m: 0,
-      total_seconds: 0,
-      step_free: true,
-      wheelchair_accessible: true,
-      crowd_penalty: 0,
-      steps: [],
-      path: [fromNodeId],
-      warnings: [],
-    };
-  }
+  if (!goal) return null;
 
   const heuristic = (nodeId: string): number => {
     const node = graph.nodes.get(nodeId);
@@ -247,17 +236,50 @@ export function route(
 
   if (!cameFrom.has(toNodeId)) return null;
 
-  // Reconstruct the path (node ids) and the edges taken, origin-first.
   const pathEdges: Edge[] = [];
   const path: string[] = [toNodeId];
   let cursor = toNodeId;
   while (cursor !== fromNodeId) {
     const link = cameFrom.get(cursor);
-    if (!link) return null; // defensive; shouldn't happen given the has() check above
+    if (!link) return null;
     pathEdges.unshift(link.edge);
     path.unshift(link.prev);
     cursor = link.prev;
   }
+
+  return { path, pathEdges };
+}
+
+export function route(
+  graph: GraphIndex,
+  fromNodeId: string,
+  toNodeId: string,
+  mode: RoutingMode,
+  crowdPenalty: CrowdPenalty = () => 0,
+  blockedNode: BlockedNode = () => false,
+): RouteResponse | null {
+  const start = graph.nodes.get(fromNodeId);
+  const goal = graph.nodes.get(toNodeId);
+  if (!start || !goal || blockedNode(fromNodeId) || blockedNode(toNodeId)) return null;
+
+  // Trivial route: already at the destination.
+  if (fromNodeId === toNodeId) {
+    return {
+      mode,
+      total_distance_m: 0,
+      total_seconds: 0,
+      step_free: true,
+      wheelchair_accessible: true,
+      crowd_penalty: 0,
+      steps: [],
+      path: [fromNodeId],
+      warnings: [],
+    };
+  }
+
+  const result = computePath(graph, fromNodeId, toNodeId, mode, crowdPenalty, blockedNode);
+  if (!result) return null;
+  const { path, pathEdges } = result;
 
   let totalDistance = 0;
   let totalSeconds = 0;

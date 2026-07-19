@@ -9,7 +9,7 @@ interface AdminLoginFormProps {
   clearError: () => void;
 }
 
-export function AdminLoginForm({ error, clearError }: AdminLoginFormProps) {
+export function AdminLoginForm({ error, clearError }: Readonly<AdminLoginFormProps>) {
   const [loading, setLoading] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
 

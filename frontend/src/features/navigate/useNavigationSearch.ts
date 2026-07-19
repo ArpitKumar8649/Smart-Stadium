@@ -64,7 +64,7 @@ export function useNavigationSearch({
           setLastAutoRefresh(`Route updated for your ${mode.replace('_', '-')} preference.`);
         }
         void saveRouteToCache(cacheKey, routeResponse);
-      } catch (caught) {
+      } catch (error_) {
         const cached = await getCachedRoute<unknown>(cacheKey);
         const parsedCache = NavigationRouteResponseSchema.safeParse(cached);
         if (parsedCache.success) {
@@ -72,7 +72,7 @@ export function useNavigationSearch({
           onRouteFound(parsedCache.data);
           setRouteFromCache(true);
         } else {
-          setError(caught instanceof Error ? caught.message : 'Could not calculate that route.');
+          setError(error_ instanceof Error ? error_.message : 'Could not calculate that route.');
           setRoute(null);
         }
       } finally {

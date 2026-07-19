@@ -124,7 +124,7 @@ function TrophyModel() {
   });
 
   return (
-    <group ref={groupRef as never} position={[0, 0, 0]}>
+    <group ref={groupRef as never}>
       <Model scale={1.8} />
     </group>
   );

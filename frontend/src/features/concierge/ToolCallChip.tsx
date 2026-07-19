@@ -8,24 +8,32 @@ const TOOL_LABELS: Record<string, string> = {
   resolve_place: 'Locating place',
 };
 
-export function ToolCallChip({ chip }: { chip: ToolChip }) {
+export function ToolCallChip({ chip }: Readonly<{ chip: ToolChip }>) {
   const pending = chip.ok === undefined;
   const label = TOOL_LABELS[chip.name] ?? chip.name;
+
+  let bgClass = 'bg-red-950 text-red-300';
+  let dotClass = 'bg-red-400';
+
+  if (pending) {
+    bgClass = 'bg-surface-800 text-surface-300';
+    dotClass = 'animate-pulse bg-accent';
+  } else if (chip.ok) {
+    bgClass = 'bg-primary-900 text-primary-200';
+    dotClass = 'bg-primary';
+  }
+
   return (
     <span
       className={[
         'inline-flex items-center gap-1.5 rounded-pill px-2.5 py-1 text-xs font-medium',
-        pending
-          ? 'bg-surface-800 text-surface-300'
-          : chip.ok
-            ? 'bg-primary-900 text-primary-200'
-            : 'bg-red-950 text-red-300',
+        bgClass,
       ].join(' ')}
     >
       <span
         className={[
           'h-1.5 w-1.5 rounded-full',
-          pending ? 'animate-pulse bg-accent' : chip.ok ? 'bg-primary' : 'bg-red-400',
+          dotClass,
         ].join(' ')}
       />
       {chip.summary ?? label}

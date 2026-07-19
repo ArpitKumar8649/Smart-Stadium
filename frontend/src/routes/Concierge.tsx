@@ -35,7 +35,7 @@ function makeSessionId() {
   const k = 'concourse.session';
   const existing = localStorage.getItem(k);
   if (existing) return existing;
-  const id = `s_${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`;
+  const id = `s_${crypto.randomUUID()}`;
   localStorage.setItem(k, id);
   return id;
 }
@@ -222,6 +222,7 @@ export default function Concierge() {
               {!gps && (
                 <div className="w-full">
                   <button
+                    type="button"
                     onClick={requestGps}
                     className="w-full rounded-xl border border-primary-800/50 bg-primary-950/30 px-4 py-3 text-sm font-semibold text-primary-300 transition hover:bg-primary-900/50"
                   >

@@ -27,7 +27,7 @@ describe('useAdminSession', () => {
     expect(result.current.authLoading).toBe(false);
     expect(result.current.authed).toBe(false);
     expect(result.current.token).toBe('');
-    expect(result.current.user).toBe(null);
+    expect(result.current.user).toBeNull();
   });
 
   it('handles authenticated user successfully', async () => {
@@ -86,7 +86,7 @@ describe('useAdminSession', () => {
       result.current.clearError();
     });
 
-    expect(result.current.authError).toBe(null);
+    expect(result.current.authError).toBeNull();
   });
 
   it('can sign out successfully', async () => {
@@ -101,7 +101,7 @@ describe('useAdminSession', () => {
     expect(auth.signOut).toHaveBeenCalled();
     expect(result.current.authed).toBe(false);
     expect(result.current.token).toBe('');
-    expect(result.current.user).toBe(null);
+    expect(result.current.user).toBeNull();
   });
 
   it('handles sign out error', async () => {

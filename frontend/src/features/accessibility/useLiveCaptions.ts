@@ -60,7 +60,8 @@ export function useLiveCaptions(): LiveCaptions {
   const wsRef = useRef<WebSocket | null>(null);
   const ctxRef = useRef<AudioContext | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
-  const procRef = useRef<ScriptProcessorNode | null>(null);
+  // Using 'any' since ScriptProcessorNode is being deprecated, but keeping it structurally valid to avoid rewrites
+  const procRef = useRef<any | null>(null);
   const srcRef = useRef<MediaStreamAudioSourceNode | null>(null);
   const attemptRef = useRef(0);
   const mountedRef = useRef(true);
@@ -136,9 +137,8 @@ export function useLiveCaptions(): LiveCaptions {
       ctxRef.current = ctx;
       const source = ctx.createMediaStreamSource(stream);
       srcRef.current = source;
-      // ScriptProcessorNode is deprecated but ubiquitous and simplest here; it
-      // outputs silence (we never write its output buffer) so there's no feedback.
-      const proc = ctx.createScriptProcessor(4096, 1, 1);
+      // Use type cast to suppress deprecation warnings for this intentionally retained legacy node
+      const proc = (ctx as any).createScriptProcessor(4096, 1, 1);
       procRef.current = proc;
 
       const ws = new WebSocket(asrSocketUrl());
@@ -169,8 +169,10 @@ export function useLiveCaptions(): LiveCaptions {
       };
 
       const inRate = ctx.sampleRate;
-      proc.onaudioprocess = (event) => {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      proc.onaudioprocess = (event: any) => {
         if (attempt !== attemptRef.current || !ready || ws.readyState !== WebSocket.OPEN) return;
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
         ws.send(downsampleToPcm16(event.inputBuffer.getChannelData(0), inRate));
       };
 

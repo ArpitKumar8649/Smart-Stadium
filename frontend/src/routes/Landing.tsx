@@ -148,7 +148,7 @@ export default function Landing() {
           </h1>
 
           <p className="mt-8 max-w-2xl text-lg leading-relaxed text-surface-300 sm:text-xl">
-            A GenAI-enabled smart-stadium platform for <strong className="text-surface-100">fans</strong>, <strong className="text-surface-100">venue staff</strong>, and <strong className="text-surface-100">tournament organizers</strong>. Navigation, crowd management, accessibility, transportation, multilingual assistance, operational intelligence, and real-time decision support — grounded in a real 3,479-node MetLife venue graph.
+            <span>A GenAI-enabled smart-stadium platform for </span><strong className="text-surface-100">fans</strong><span>, </span><strong className="text-surface-100">venue staff</strong><span>, and </span><strong className="text-surface-100">tournament organizers</strong><span>. Navigation, crowd management, accessibility, transportation, multilingual assistance, operational intelligence, and real-time decision support — grounded in a real 3,479-node MetLife venue graph.</span>
           </p>
 
           <div className="mt-10 flex w-full max-w-md flex-col gap-4 sm:flex-row sm:items-center sm:justify-center">

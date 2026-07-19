@@ -9,7 +9,7 @@ export function RouteSearchForm({
   setMode,
   loadingRoute,
   planRoute,
-}: {
+}: Readonly<{
   fromLabel: string;
   setFromLabel: (label: string) => void;
   toLabel: string;
@@ -18,7 +18,7 @@ export function RouteSearchForm({
   setMode: (mode: RoutingMode) => void;
   loadingRoute: boolean;
   planRoute: () => void;
-}) {
+}>) {
   return (
     <form
       className="grid gap-2 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_170px_auto]"
@@ -28,7 +28,7 @@ export function RouteSearchForm({
       }}
     >
       <label className="grid gap-1 text-xs text-surface-400">
-        From
+        <span>From</span>
         <input
           value={fromLabel}
           onChange={(event) => setFromLabel(event.target.value)}
@@ -37,7 +37,7 @@ export function RouteSearchForm({
         />
       </label>
       <label className="grid gap-1 text-xs text-surface-400">
-        To
+        <span>To</span>
         <input
           value={toLabel}
           onChange={(event) => setToLabel(event.target.value)}
@@ -46,7 +46,7 @@ export function RouteSearchForm({
         />
       </label>
       <label className="grid gap-1 text-xs text-surface-400">
-        Preference
+        <span>Preference</span>
         <select
           value={mode}
           onChange={(event) => setMode(event.target.value as RoutingMode)}

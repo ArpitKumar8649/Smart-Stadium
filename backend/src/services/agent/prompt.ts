@@ -25,9 +25,7 @@ const PROMPT_PATH = resolve(
 let cachedSystemPrompt: string | undefined;
 
 function loadSystemPrompt(): string {
-  if (cachedSystemPrompt === undefined) {
-    cachedSystemPrompt = readFileSync(PROMPT_PATH, 'utf8').trim();
-  }
+  cachedSystemPrompt ??= readFileSync(PROMPT_PATH, 'utf8').trim();
   return cachedSystemPrompt;
 }
 

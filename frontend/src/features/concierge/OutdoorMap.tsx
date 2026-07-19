@@ -81,11 +81,15 @@ const LocationOverride: React.FC<{
 
   return (
     <div
+      role="presentation"
       className="absolute right-3 top-3 z-[1000]"
       // Keep clicks/scroll from reaching the Leaflet map underneath.
       onClick={(e) => e.stopPropagation()}
       onDoubleClick={(e) => e.stopPropagation()}
       onMouseDown={(e) => e.stopPropagation()}
+      onKeyDown={(e) => {
+        if (e.key === 'Escape') setOpen(false);
+      }}
     >
       {!open ? (
         <button
@@ -153,7 +157,7 @@ const LocationOverride: React.FC<{
   );
 };
 
-export const OutdoorMap: React.FC<OutdoorMapProps> = ({ userLocation, encodedPolyline, onSetLocation }) => {
+export const OutdoorMap: React.FC<Readonly<OutdoorMapProps>> = ({ userLocation, encodedPolyline, onSetLocation }) => {
   // Default to a central stadium location if no user location
   const defaultLocation: [number, number] = [40.8128, -74.0742];
   const center: [number, number] = userLocation ? [userLocation.lat, userLocation.lng] : defaultLocation;

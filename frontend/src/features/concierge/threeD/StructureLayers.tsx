@@ -186,7 +186,7 @@ export const VerticalConnectionsLayer = ({
       .flatMap((c) => {
         const stops = [...c.points].sort((a, b) => a.elevation - b.elevation);
         if (stops.length < 2) return [];
-        const hi = stops[stops.length - 1];
+        const hi = stops.at(-1);
         const lo = stops[0];
         if (!hi || !lo) return [];
         const style = CONNECTION_STYLE[c.type];

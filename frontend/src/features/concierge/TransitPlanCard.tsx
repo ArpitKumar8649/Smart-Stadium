@@ -17,7 +17,10 @@ function formatDurationMin(sec: number): string {
 }
 
 function formatKm(m: number): string {
-  return m >= 1000 ? `${(m / 1000).toFixed(m >= 10000 ? 0 : 1)} km` : `${Math.round(m)} m`;
+  if (m >= 1000) {
+    return `${(m / 1000).toFixed(m >= 10000 ? 0 : 1)} km`;
+  }
+  return `${Math.round(m)} m`;
 }
 
 function formatCo2(g: number): string {
@@ -35,7 +38,7 @@ export interface TransitPlanCardProps {
  * of ground-travel options with time, distance, and CO₂, and a highlighted
  * recommendation. Deliberately compact so it doesn't crowd the chat stream.
  */
-export function TransitPlanCard({ plan }: TransitPlanCardProps) {
+export function TransitPlanCard({ plan }: Readonly<TransitPlanCardProps>) {
   const { options, recommendation } = plan;
   const sorted = [...options].sort((a, b) => {
     if (a.mode === recommendation.recommended_mode) return -1;
@@ -44,12 +47,12 @@ export function TransitPlanCard({ plan }: TransitPlanCardProps) {
   });
 
   const carbonSaved = recommendation.co2_saved_vs_drive_grams;
-  const carbonNote =
-    carbonSaved > 0
-      ? `Saves about ${formatCo2(carbonSaved)} vs. driving.`
-      : carbonSaved < 0
-        ? `Emits about ${formatCo2(-carbonSaved)} more than driving.`
-        : 'Same footprint as driving.';
+  let carbonNote = 'Same footprint as driving.';
+  if (carbonSaved > 0) {
+    carbonNote = `Saves about ${formatCo2(carbonSaved)} vs. driving.`;
+  } else if (carbonSaved < 0) {
+    carbonNote = `Emits about ${formatCo2(-carbonSaved)} more than driving.`;
+  }
 
   return (
     <section

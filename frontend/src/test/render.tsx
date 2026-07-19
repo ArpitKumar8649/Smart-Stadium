@@ -22,6 +22,6 @@ export function renderWithAppProviders(
   );
 }
 
-export function Harness({ children }: { children: ReactNode }) {
+export function Harness({ children }: Readonly<{ children: ReactNode }>) {
   return <A11yProvider>{children}</A11yProvider>;
 }

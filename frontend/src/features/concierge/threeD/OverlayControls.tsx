@@ -77,6 +77,7 @@ export const SectionSearchControl = ({
           <div className="mt-1.5 flex max-h-56 flex-col gap-1 overflow-y-auto">
             {searchMatches.map((s) => (
               <button
+                type="button"
                 key={s.name}
                 onClick={() => activateSection(s.name)}
                 className="flex items-center justify-between gap-2 rounded-lg bg-surface-800 px-2.5 py-1.5 text-left text-[11px] font-semibold text-surface-100 transition hover:bg-primary hover:text-surface-950"
@@ -169,7 +170,7 @@ export const ConnectionsLegendControl = ({
         onChange={(e) => setAccessibleOnly(e.target.checked)}
         className="h-3 w-3 accent-primary"
       />
-      ♿ Step-free only
+      <span>♿ Step-free only</span>
     </label>
     <p className="mt-1 text-[9px] text-surface-500">
       {selectedElevation === null

@@ -118,7 +118,7 @@ const KEYFRAMES: Record<ZoneKind, Array<[number, number]>> = {
 function lerpDensity(kind: ZoneKind, minute: number): number {
   const kf = KEYFRAMES[kind];
   const first = kf[0]!;
-  const last = kf[kf.length - 1]!;
+  const last = kf.at(-1)!;
   if (minute <= first[0]) return first[1];
   if (minute >= last[0]) return last[1];
   for (let i = 0; i < kf.length - 1; i++) {
@@ -135,12 +135,14 @@ function lerpDensity(kind: ZoneKind, minute: number): number {
 /** Small deterministic per-zone wobble so sibling zones differ and evolve. */
 function wobble(zoneId: string, minute: number): number {
   let h = 0;
-  for (let i = 0; i < zoneId.length; i++) h = (h * 31 + zoneId.charCodeAt(i)) % 1000;
+  for (let i = 0; i < zoneId.length; i++) {
+    h = (h * 31 + (zoneId.codePointAt(i) ?? 0)) % 1000;
+  }
   return 0.05 * Math.sin(h + minute / 6);
 }
 
 function clamp01(n: number): number {
-  return n < 0 ? 0 : n > 1 ? 1 : n;
+  return Math.min(Math.max(n, 0), 1);
 }
 
 function phaseFor(minute: number): MatchPhase {
@@ -327,7 +329,10 @@ function deriveZones(): Zone[] {
     const kind = kindOf(node.type);
     const id = `l${node.level}-${kind}`;
     let g = groups.get(id);
-    if (!g) groups.set(id, (g = { level: node.level, kind, nodes: [] }));
+    if (!g) {
+      g = { level: node.level, kind, nodes: [] };
+      groups.set(id, g);
+    }
     g.nodes.push(node);
   }
   const zones: Zone[] = [];
@@ -341,7 +346,7 @@ function deriveZones(): Zone[] {
     const count = g.nodes.length || 1;
     zones.push({
       id,
-      label: `${LEVEL_NAMES[g.level] ?? `Level ${g.level}`} ${KIND_LABEL[g.kind]}`,
+      label: `${LEVEL_NAMES[g.level] ?? 'Level ' + g.level} ${KIND_LABEL[g.kind]}`,
       level: g.level,
       kind: g.kind,
       nodeIds: g.nodes.map((n) => n.id),
@@ -358,11 +363,11 @@ function round2(n: number): number {
   return Math.round(n * 100) / 100;
 }
 function clampRange(n: number, lo: number, hi: number): number {
-  return n < lo ? lo : n > hi ? hi : n;
+  return Math.min(Math.max(n, lo), hi);
 }
 
 let singleton: CrowdSimulator | undefined;
 export function getCrowdSimulator(): CrowdSimulator {
-  if (!singleton) singleton = new CrowdSimulator();
+  singleton ??= new CrowdSimulator();
   return singleton;
 }
