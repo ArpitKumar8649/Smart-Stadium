@@ -33,7 +33,8 @@
     "react-router-dom": "^6.26.2",
     "resium": "^1.24.0",
     "three": "^0.170.0",
-    "vite-plugin-cesium": "^1.2.23"
+    "vite-plugin-cesium": "^1.2.23",
+    "zod": "^3.25.76"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.12.1",
