@@ -165,10 +165,10 @@ export default function Concierge() {
   const empty = messages.length === 0;
 
   return (
-    <main id="main-content" tabIndex={-1} className="mx-auto flex h-[100dvh] max-w-6xl flex-col px-4 md:flex-row md:gap-6">
+    <main id="main-content" tabIndex={-1} className="mx-auto flex h-[100dvh] max-w-6xl flex-col px-4 sm:px-6 md:flex-row md:gap-8">
       {/* Chat Column */}
-      <div className="flex h-full flex-col md:w-[450px] shrink-0">
-        <header className="flex items-center justify-between py-4">
+      <div className="flex h-full flex-col w-full md:w-[450px] lg:w-[500px] shrink-0 pb-4">
+        <header className="flex shrink-0 items-center justify-between py-4">
           <Link to="/" aria-label="Back to Concourse home">
             <Wordmark />
           </Link>
@@ -296,7 +296,7 @@ export default function Concierge() {
             e.preventDefault();
             submit(input);
           }}
-          className="relative flex items-center justify-center py-4 mb-2 w-full"
+          className="relative flex items-center justify-center py-2 sm:py-4 mb-2 w-full pb-safe"
         >
           <div id="poda" className="relative flex items-center justify-center group w-full">
             <div className="absolute z-[-1] overflow-hidden h-full w-full rounded-xl blur-[3px]

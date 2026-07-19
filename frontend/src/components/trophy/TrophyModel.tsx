@@ -1,18 +1,24 @@
 
 import { useGLTF } from '@react-three/drei'
+import { useEffect } from 'react'
 
 type TrophyNodes = {
   mesh_0: {
-    geometry: unknown
+    geometry: { center: () => void }
     material: unknown
   }
 }
 
 export function Model(props: JSX.IntrinsicElements['group']) {
-  // The project resolves two compatible Three type packages. Preserve the
-  // gltfjsx-generated geometry and material references structurally instead
-  // of tying the generated asset to either package's internal types.
   const { nodes } = useGLTF('/trophy.glb') as unknown as { nodes: TrophyNodes }
+
+  // Center the geometry's bounding box exactly on the origin so it rotates smoothly on its own axis
+  useEffect(() => {
+    if (nodes?.mesh_0?.geometry?.center) {
+      nodes.mesh_0.geometry.center()
+    }
+  }, [nodes])
+
   return (
     <group {...props} dispose={null}>
       <mesh geometry={nodes.mesh_0.geometry as never} material={nodes.mesh_0.material as never} />

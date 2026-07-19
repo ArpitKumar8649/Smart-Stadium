@@ -54,9 +54,19 @@ describe('useLiveCaptions', () => {
     Object.defineProperty(globalThis, 'AudioContext', {
       configurable: true,
       writable: true,
-      value: vi.fn(() => audioContext),
+      value: function() { return audioContext; },
+    });
+    Object.defineProperty(window, 'AudioContext', {
+      configurable: true,
+      writable: true,
+      value: function() { return audioContext; },
     });
     Object.defineProperty(globalThis, 'WebSocket', {
+      configurable: true,
+      writable: true,
+      value: MockWebSocket,
+    });
+    Object.defineProperty(window, 'WebSocket', {
       configurable: true,
       writable: true,
       value: MockWebSocket,

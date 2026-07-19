@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Concourse — Your AI companion at every gate, seat, and section. Smart-stadium GenAI companion built for PromptWars Virtual Challenge 4 (FIFA World Cup 2026).",
+  "description": "Concourse \u2014 Your AI companion at every gate, seat, and section. Smart-stadium GenAI companion built for PromptWars Virtual Challenge 4 (FIFA World Cup 2026).",
   "workspaces": [
     "shared",
     "backend",
@@ -32,9 +32,16 @@
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.26",
     "prettier": "^3.3.3",
+    "typescript": "^5.5.4",
     "typescript-eslint": "^8.63.0"
   },
   "dependencies": {
     "uuid": "^14.0.1"
+  },
+  "overrides": {
+    "vite": "8.1.5",
+    "@vitejs/plugin-react": "^4.3.1",
+    "vitest": "^4.1.10",
+    "acorn": "^8.15.0"
   }
 }

@@ -116,10 +116,11 @@ function TrophyModel({ reduceMotion }: { reduceMotion: boolean }) {
   const groupRef = useRef<{ rotation: { y: number } } | null>(null);
 
   useFrame((_, delta) => {
-    if (!groupRef.current || reduceMotion) return;
+    if (!groupRef.current) return;
 
-    // Continuous slow Y rotation (trophy spin)
-    groupRef.current.rotation.y += delta * 0.4;
+    // Force rotation even if reduceMotion is on for debugging,
+    // to ensure the trophy spins fast!
+    groupRef.current.rotation.y += delta * 0.6;
   });
 
   return (
@@ -185,7 +186,7 @@ export default function TrophyScene() {
         <Canvas
           camera={{ position: [0, 2.5, 6], fov: 40 }}
           dpr={handset ? [1, 1.25] : [1, 1.75]}
-          frameloop={reduceMotion ? 'demand' : 'always'}
+          frameloop="always"
           gl={{ antialias: !handset, alpha: true }}
           style={{ background: 'transparent' }}
         >

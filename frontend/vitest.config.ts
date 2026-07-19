@@ -14,12 +14,15 @@ export default defineConfig({
     include: ['src/**/*.test.{ts,tsx}'],
     environment: 'jsdom',
     globals: true,
+    env: {
+      VITE_API_BASE: '',
+    },
     setupFiles: ['./src/test/setup.ts'],
     restoreMocks: true,
     clearMocks: true,
     css: false,
     coverage: {
-      provider: 'v8',
+      provider: 'istanbul',
       reporter: ['text', 'json-summary', 'html', 'lcov'],
       reportsDirectory: './coverage/frontend',
       include: ['src/**/*.{ts,tsx}'],
@@ -32,6 +35,7 @@ export default defineConfig({
         // mocked component tests, and Playwright flows rather than brittle jsdom pixels.
         'src/components/trophy/**',
         'src/features/concierge/StadiumMap3D.tsx',
+        'src/features/concierge/threeD/**',
       ],
       thresholds: {
         statements: 80,

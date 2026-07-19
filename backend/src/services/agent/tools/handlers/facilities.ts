@@ -2,7 +2,7 @@ import { z } from 'zod';
 import type { NodeType } from '@concourse/shared';
 import { getGraph } from '../../../graph/loader.js';
 
-import { fail, ok, zodMessage, candidateLabels, humanDuration, compactRoute, routerGraph, facilityView, FACILITY_TYPES } from '../formatters.js';
+import { fail, ok, zodMessage, facilityView, FACILITY_TYPES } from '../formatters.js';
 import type { ToolResult } from '../index.js';
 
 const ListFacilitiesArgs = z.object({

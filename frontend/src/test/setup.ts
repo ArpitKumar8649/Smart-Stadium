@@ -59,10 +59,12 @@ Object.defineProperty(window, 'matchMedia', {
 
 Object.defineProperty(window, 'IntersectionObserver', {
   writable: true,
+  configurable: true,
   value: MockIntersectionObserver,
 });
 Object.defineProperty(globalThis, 'IntersectionObserver', {
   writable: true,
+  configurable: true,
   value: MockIntersectionObserver,
 });
 Object.defineProperty(window, 'ResizeObserver', {
@@ -84,6 +86,7 @@ beforeEach(() => {
   sessionStorage.clear();
   mediaQueries.clear();
   vi.useRealTimers();
+  vi.stubEnv('VITE_API_BASE', '');
   Object.defineProperty(navigator, 'onLine', { configurable: true, value: true });
   Object.defineProperty(URL, 'createObjectURL', { configurable: true, value: vi.fn(() => 'blob:mock-url') });
   Object.defineProperty(URL, 'revokeObjectURL', { configurable: true, value: vi.fn() });

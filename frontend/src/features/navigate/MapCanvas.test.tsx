@@ -16,7 +16,9 @@ describe('MapCanvas', () => {
         level={1}
         routePoints={[
           makeRoutePoint({ id: 'start', order: 0 }),
-          makeRoutePoint({ id: 'end', label: 'Section 108', coords: [-74.072, 40.815], order: 1 }),
+          makeRoutePoint({ id: 'mid1', coords: [-74.072, 40.815], order: 1, level: 2 }), // Trigger floor boundary
+          makeRoutePoint({ id: 'mid2', coords: [-74.073, 40.816], order: 2, level: 2 }), // Trigger segment push
+          makeRoutePoint({ id: 'end', label: 'Section 108', coords: [-74.072, 40.815], order: 3 }),
         ]}
         crowdZones={[activeZone, makeCrowdZone({ zone_id: 'other-floor', label: 'Other', level: 2 })]}
         forecastOffset={30}
@@ -30,8 +32,8 @@ describe('MapCanvas', () => {
     expect(screen.getByText('Projected +30 min')).toBeInTheDocument();
     expect(screen.getByText('Level 1 · L1')).toBeInTheDocument();
 
-    zoneButton.focus();
-    await user.keyboard('{Enter}');
+    // Trigger click on zone
+    await user.click(zoneButton);
     expect(onZoneFocus).toHaveBeenCalledWith(activeZone);
   });
 

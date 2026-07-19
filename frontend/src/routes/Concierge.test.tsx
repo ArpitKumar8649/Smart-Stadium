@@ -106,4 +106,81 @@ describe('Concierge route', () => {
 
     await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Concourse replied: Use Gate C.'));
   });
+
+  it('can type custom queries and toggle accessibility preferences', async () => {
+    const user = userEvent.setup();
+    renderConcierge();
+
+    // Type query
+    const input = screen.getByRole('textbox', { name: /Message Concourse/i });
+    await user.type(input, 'Where is the bathroom?');
+    await user.click(screen.getByRole('button', { name: 'Send message' }));
+
+    expect(conciergeState.send).toHaveBeenCalledWith(
+      'Where is the bathroom?',
+      'en',
+      undefined,
+      undefined,
+      [],
+    );
+
+    // Toggle a11y panel and select step-free
+    await user.click(screen.getByText(/Accessibility tools & preferences/i));
+    await user.click(screen.getByRole('checkbox', { name: /Avoid stairs & escalators/i }));
+
+    await user.type(input, 'Route to gate A');
+    await user.click(screen.getByRole('button', { name: 'Send message' }));
+
+    // Test GPS button with successful geolocation
+    Object.defineProperty(navigator, 'geolocation', {
+      configurable: true,
+      value: {
+        getCurrentPosition: vi.fn((success) => success({ coords: { latitude: 40, longitude: -74 } })),
+      },
+    });
+
+    // The button might disappear if GPS is set, so we can re-render or mock it first.
+    // For now, let's just trigger it from the initial state in a new test block.
+
+    expect(conciergeState.send).toHaveBeenLastCalledWith(
+      'Route to gate A',
+      'en',
+      undefined,
+      undefined,
+      ['step_free'],
+    );
+  });
+
+  it('handles GPS location sharing successfully', async () => {
+    const user = userEvent.setup();
+    Object.defineProperty(navigator, 'geolocation', {
+      configurable: true,
+      value: {
+        getCurrentPosition: vi.fn((success) => success({ coords: { latitude: 40, longitude: -74 } })),
+      },
+    });
+
+    renderConcierge();
+    await user.click(screen.getByRole('button', { name: /Share Location for Outdoor Routes/i }));
+
+    // The button disappears on success because `gps` state is set
+    expect(screen.queryByRole('button', { name: /Share Location for Outdoor Routes/i })).not.toBeInTheDocument();
+  });
+
+  it('handles unsupported GPS location sharing gracefully', async () => {
+    const user = userEvent.setup();
+    const originalGeo = navigator.geolocation;
+    // @ts-expect-error forcing unsupported environment
+    delete navigator.geolocation;
+
+    renderConcierge();
+    await user.click(screen.getByRole('button', { name: /Share Location for Outdoor Routes/i }));
+
+    expect(screen.getByRole('alert')).toHaveTextContent(/Location sharing is not supported/i);
+
+    Object.defineProperty(navigator, 'geolocation', {
+      configurable: true,
+      value: originalGeo,
+    });
+  });
 });

@@ -108,9 +108,9 @@ export default function Landing() {
       <div className="pointer-events-none absolute -right-[10%] top-[30%] h-[400px] w-[400px] animate-float-delayed rounded-full bg-accent-600/20 blur-[120px]" />
       <div className="pointer-events-none absolute bottom-[-10%] left-[20%] h-[600px] w-[600px] animate-float rounded-full bg-blue-900/20 blur-[150px]" />
 
-      <main id="main-content" tabIndex={-1} className="relative z-10 mx-auto max-w-6xl px-6 py-8">
+      <main id="main-content" tabIndex={-1} className="relative z-10 mx-auto max-w-6xl px-4 sm:px-6 py-6 sm:py-8">
         {/* Header */}
-        <header className="flex items-center justify-between glass-panel rounded-pill px-6 py-3">
+        <header className="flex items-center justify-between glass-panel rounded-pill px-4 sm:px-6 py-3">
           <Wordmark />
           <div className="flex items-center gap-4 text-sm font-medium">
             <a
@@ -122,9 +122,9 @@ export default function Landing() {
               GitHub Repo
             </a>
             <LimelightNav
-              className="h-12 rounded-xl px-1"
-              iconContainerClassName="!px-3.5 !py-2"
-              iconClassName="w-5 h-5"
+              className="h-10 sm:h-12 rounded-xl px-1"
+              iconContainerClassName="!px-2 sm:!px-3.5 !py-1.5 sm:!py-2"
+              iconClassName="w-4 h-4 sm:w-5 sm:h-5"
               items={navItems}
               defaultActiveIndex={0}
             />
@@ -144,7 +144,7 @@ export default function Landing() {
           <h1 className="mt-8 max-w-4xl font-display text-5xl font-bold leading-[1.1] tracking-tight sm:text-6xl lg:text-7xl">
             Your AI companion at every
             <br />
-            <span className="text-gradient">gate, seat, and section.</span>
+            <span className="bg-gradient-to-r from-primary-400 via-accent-300 to-primary-500 bg-clip-text text-transparent">gate, seat, and section.</span>
           </h1>
 
           <p className="mt-8 max-w-2xl text-lg leading-relaxed text-surface-300 sm:text-xl">
@@ -176,20 +176,21 @@ export default function Landing() {
         {/* Features Grid */}
         <section className="mt-16 pb-24">
           <div className="mb-12 text-center">
-            <h2 className="font-display text-3xl font-semibold text-surface-50">Every named area of Challenge 4.</h2>
-            <p className="mt-3 text-surface-400">Grounded in a Qwen-backed concierge, a 3,479-node MetLife venue graph, and the Tournament Operations Console.</p>
+            <h2 className="font-display text-3xl font-semibold text-surface-50 sm:text-4xl">Every named area of Challenge 4.</h2>
+            <p className="mt-4 max-w-3xl mx-auto text-lg text-surface-400">Grounded in a Qwen-backed concierge, a 3,479-node MetLife venue graph, and the Tournament Operations Console.</p>
           </div>
 
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {FEATURES.map((f) => (
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 auto-rows-fr">
+            {FEATURES.map((f, i) => (
               <article
                 key={f.title}
-                className="glass-panel group relative overflow-hidden rounded-3xl p-6 transition-all hover:-translate-y-1 hover:border-surface-600"
+                className={`glass-panel group relative overflow-hidden rounded-3xl p-8 transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl hover:shadow-primary-900/20 hover:border-surface-600 ${i === 0 ? 'sm:col-span-2 lg:col-span-2' : ''} ${i === FEATURES.length - 1 ? 'sm:col-span-2 lg:col-span-3' : ''}`}
               >
-                <div className="mb-4 text-3xl">{f.icon}</div>
-                <h3 className="font-display text-lg font-semibold text-surface-50">{f.title}</h3>
-                <p className="mt-2 text-sm leading-relaxed text-surface-300">{f.body}</p>
-                <div className="absolute -right-10 -top-10 h-32 w-32 rounded-full bg-surface-800/30 blur-2xl transition-colors group-hover:bg-primary-900/30" />
+                <div className="mb-5 text-4xl">{f.icon}</div>
+                <h3 className="font-display text-xl font-bold text-surface-50">{f.title}</h3>
+                <p className="mt-3 text-base leading-relaxed text-surface-300">{f.body}</p>
+                <div className="absolute -right-12 -top-12 h-40 w-40 rounded-full bg-surface-800/30 blur-3xl transition-colors duration-500 group-hover:bg-primary-500/20" />
+                <div className="absolute -left-12 -bottom-12 h-40 w-40 rounded-full bg-surface-800/10 blur-3xl transition-colors duration-500 group-hover:bg-accent-500/20" />
               </article>
             ))}
           </div>

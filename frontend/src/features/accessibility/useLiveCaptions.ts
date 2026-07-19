@@ -176,7 +176,8 @@ export function useLiveCaptions(): LiveCaptions {
 
       source.connect(proc);
       proc.connect(ctx.destination); // needed for onaudioprocess to fire in some browsers
-    } catch {
+    } catch (e) {
+      console.error("LiveCaptions start() threw:", e);
       if (attempt === attemptRef.current) fail('Microphone access was denied or is unavailable.');
     }
   }, [release]);

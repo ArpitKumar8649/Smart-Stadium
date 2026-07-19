@@ -32,7 +32,26 @@ describe('Landing route', () => {
     await user.click(screen.getByRole('button', { name: 'Ops Console' }));
     expect(navigate).toHaveBeenCalledWith('/admin');
 
+    await user.click(screen.getByRole('button', { name: 'Concierge' }));
+    expect(navigate).toHaveBeenCalledWith('/concierge');
+
+    await user.click(screen.getByRole('button', { name: 'Tactical map' }));
+    expect(navigate).toHaveBeenCalledWith('/navigate');
+
     unmount();
     expect(cleanupWarmup).toHaveBeenCalled();
+  });
+
+  it('loads TrophyScene without IntersectionObserver gracefully', () => {
+    const originalObserver = window.IntersectionObserver;
+    delete (window as any).IntersectionObserver;
+
+    render(<MemoryRouter><Landing /></MemoryRouter>);
+    expect(screen.getByText('Trophy scene')).toBeInTheDocument();
+
+    Object.defineProperty(window, 'IntersectionObserver', {
+      value: originalObserver,
+      configurable: true
+    });
   });
 });
