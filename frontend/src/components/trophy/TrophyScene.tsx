@@ -110,7 +110,7 @@ function useTypingLoop(
 
 // ── Inner 3D model component ─────────────────────────────
 
-function TrophyModel({ reduceMotion }: { reduceMotion: boolean }) {
+function TrophyModel() {
   // The workspace currently resolves two compatible Three type packages. Keep
   // the ref structural so it remains type-safe without coupling to either copy.
   const groupRef = useRef<{ rotation: { y: number } } | null>(null);
@@ -210,7 +210,7 @@ export default function TrophyScene() {
               <Lightformer intensity={2.5} position={[4, 2, 2]} scale={[4, 6, 1]} color="#FFB347" />
               <Lightformer intensity={1.5} position={[0, -3, 2]} scale={[6, 2, 1]} color="#663311" />
             </Environment>
-            <TrophyModel reduceMotion={reduceMotion} />
+            <TrophyModel />
             <ContactShadows
               position={[0, 0, 0]}
               opacity={0.5}

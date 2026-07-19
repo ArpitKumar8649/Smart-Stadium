@@ -1,7 +1,7 @@
 import { renderHook, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { useAdminSession } from './useAdminSession';
-import { onIdTokenChanged } from 'firebase/auth';
+import { onIdTokenChanged, type User } from 'firebase/auth';
 import { auth } from '../../lib/firebase';
 import { logger } from '../../lib/telemetry';
 
@@ -17,7 +17,9 @@ describe('useAdminSession', () => {
   it('initializes with loading state and handles unauthenticated user', () => {
     vi.mocked(onIdTokenChanged).mockImplementationOnce((_auth, cb) => {
       // Simulate immediate auth resolution with no user
-      cb(null);
+      if (typeof cb === 'function') {
+        cb(null);
+      }
       return vi.fn();
     });
 
@@ -35,7 +37,9 @@ describe('useAdminSession', () => {
 
     vi.mocked(onIdTokenChanged).mockImplementationOnce((_auth, cb) => {
       // Resolve with user
-      cb(mockUser);
+      if (typeof cb === 'function') {
+        cb(mockUser);
+      }
       return vi.fn();
     });
 
@@ -58,7 +62,9 @@ describe('useAdminSession', () => {
     } as unknown as User;
 
     vi.mocked(onIdTokenChanged).mockImplementationOnce((_auth, cb) => {
-      cb(mockUser);
+      if (typeof cb === 'function') {
+        cb(mockUser);
+      }
       return vi.fn();
     });
 

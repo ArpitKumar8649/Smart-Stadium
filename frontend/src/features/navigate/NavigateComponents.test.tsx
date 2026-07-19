@@ -59,7 +59,7 @@ describe('AlertFeedPanel', () => {
     const dismissAlert = vi.fn();
 
     render(<AlertFeedPanel
-      activeAlerts={[{ id: 'a1', severity: 'warn', title: 'Test Alert', body: 'Warning body' }]}
+      activeAlerts={[{ id: 'a1', severity: 'warn', title: 'Test Alert', body: 'Warning body', kind: 'general', emitted_at: new Date().toISOString() }]}
       planRoute={planRoute}
       dismissAlert={dismissAlert}
     />);

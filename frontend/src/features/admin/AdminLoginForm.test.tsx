@@ -2,7 +2,7 @@ import { render, screen, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { AdminLoginForm } from './AdminLoginForm';
-import { signInWithPopup } from 'firebase/auth';
+import { signInWithPopup, type UserCredential } from 'firebase/auth';
 import { logger } from '../../lib/telemetry';
 
 vi.mock('../../lib/telemetry', () => ({
@@ -17,7 +17,7 @@ describe('AdminLoginForm', () => {
   it('renders login button and handles successful login', async () => {
     const user = userEvent.setup();
     const clearError = vi.fn();
-    vi.mocked(signInWithPopup).mockResolvedValueOnce({} as unknown as ReturnType<typeof signInWithPopup>);
+    vi.mocked(signInWithPopup).mockResolvedValueOnce({} as unknown as UserCredential);
 
     render(<AdminLoginForm error={null} clearError={clearError} />);
 
